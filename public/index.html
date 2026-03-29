@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NepTrade Pro — Free NEPSE Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{--bg:#070b14;--bg2:#0c1220;--bg3:#101827;--card:#131a2b;--card2:#182033;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--accent:#00d4a3;--a2:#0099ff;--a3:#ff6b35;--danger:#ff4455;--success:#2ed573;--warn:#ffb300;--text:#e8eaf2;--text2:#8892aa;--text3:#3a4460;--font:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;--disp:'Syne',sans-serif;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,163,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,163,0.025) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0;}
+
+/* ── SIDEBAR ── */
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:236px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;}
+.logo{padding:22px 18px;border-bottom:1px solid var(--border);}
+.logo-mark{font-family:var(--disp);font-size:21px;font-weight:800;color:var(--accent);letter-spacing:-.5px;}
+.logo-sub{font-size:10px;color:var(--text2);font-family:var(--mono);letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
+.nav{padding:12px 0;flex:1;overflow-y:auto;scrollbar-width:none;}
+.nav::-webkit-scrollbar{display:none;}
+.nsec{padding:10px 18px 4px;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);font-family:var(--mono);}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 18px;cursor:pointer;transition:all .15s;font-size:13.5px;color:var(--text2);border-left:3px solid transparent;}
+.ni:hover{background:rgba(255,255,255,0.03);color:var(--text);}
+.ni.active{background:rgba(0,212,163,0.07);color:var(--accent);border-left-color:var(--accent);}
+.ni-icon{font-size:15px;width:18px;text-align:center;flex-shrink:0;}
+.nbadge{margin-left:auto;font-size:10px;padding:2px 7px;border-radius:20px;font-family:var(--mono);}
+.nb-live{background:rgba(255,68,85,0.18);color:var(--danger);}
+.nb-new{background:rgba(0,212,163,0.18);color:var(--accent);}
+.free-badge{margin:10px 14px;padding:12px 14px;background:linear-gradient(135deg,rgba(0,212,163,0.12),rgba(0,153,255,0.1));border:1px solid rgba(0,212,163,0.22);border-radius:10px;text-align:center;}
+.free-badge .fb-label{font-size:10px;color:var(--text2);letter-spacing:1px;text-transform:uppercase;font-family:var(--mono);}
+.free-badge .fb-val{font-family:var(--disp);font-size:18px;font-weight:800;color:var(--accent);margin:3px 0;}
+.free-badge .fb-sub{font-size:11px;color:var(--text2);}
+
+/* ── TOPBAR ── */
+.main{margin-left:236px;min-height:100vh;position:relative;z-index:1;}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:50;}
+.ticker-scroll{display:flex;align-items:center;gap:20px;flex:1;overflow:hidden;}
+.ti{display:flex;align-items:center;gap:7px;white-space:nowrap;}
+.ti-name{font-size:11px;color:var(--text2);font-family:var(--mono);}
+.ti-val{font-size:13px;font-weight:500;font-family:var(--mono);}
+.ti-chg{font-size:10px;font-family:var(--mono);padding:2px 6px;border-radius:4px;}
+.up{color:var(--success);}.down{color:var(--danger);}
+.up-bg{background:rgba(46,213,115,0.1);color:var(--success);}
+.dn-bg{background:rgba(255,68,85,0.1);color:var(--danger);}
+.mkt-status{display:flex;align-items:center;gap:6px;font-size:11px;padding:5px 12px;border-radius:20px;white-space:nowrap;}
+.mkt-open{background:rgba(46,213,115,0.1);color:var(--success);}
+.mkt-closed{background:rgba(255,68,85,0.1);color:var(--danger);}
+.sdot{width:6px;height:6px;border-radius:50%;animation:pulse 1.5s infinite;}
+.sdot-green{background:var(--success);}
+.sdot-red{background:var(--danger);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.tbtn{width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border2);border-radius:8px;cursor:pointer;font-size:15px;background:transparent;color:var(--text2);position:relative;transition:all .15s;}
+.tbtn:hover{background:var(--card2);color:var(--text);}
+.nbadge-abs{position:absolute;top:-4px;right:-4px;width:14px;height:14px;background:var(--danger);border-radius:50%;font-size:9px;display:flex;align-items:center;justify-content:center;color:white;font-family:var(--mono);}
+
+/* ── PAGE ── */
+.page{display:none;padding:24px;animation:fadeIn .25s ease;}
+.page.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+.ph-title{font-family:var(--disp);font-size:20px;font-weight:700;}
+.ph-sub{font-size:12px;color:var(--text2);margin-top:3px;}
+.live-tag{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;color:var(--danger);background:rgba(255,68,85,0.1);padding:4px 10px;border-radius:4px;}
+
+/* ── CARDS ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:18px;}
+.ctitle{font-size:10.5px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text2);margin-bottom:12px;font-family:var(--mono);}
+
+/* ── GRIDS ── */
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.gm{display:grid;grid-template-columns:2fr 1fr;gap:14px;}
+.mb{margin-bottom:16px;}
+
+/* ── METRIC CARDS ── */
+.mc{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:18px;overflow:hidden;position:relative;}
+.mc::after{content:'';position:absolute;bottom:-10px;right:-10px;width:70px;height:70px;border-radius:50%;opacity:.05;}
+.mc.g::after{background:var(--success)}.mc.r::after{background:var(--danger)}.mc.b::after{background:var(--a2)}.mc.a::after{background:var(--warn)}
+.mc-label{font-size:10px;color:var(--text2);letter-spacing:1px;text-transform:uppercase;font-family:var(--mono);}
+.mc-val{font-size:26px;font-family:var(--disp);font-weight:700;margin:5px 0 3px;}
+.mc-chg{font-size:11px;font-family:var(--mono);}
+
+/* ── SIGNAL CARDS ── */
+.sc{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .18s;margin-bottom:8px;}
+.sc:hover{border-color:var(--border2);background:var(--card2);transform:translateY(-1px);}
+.sbadge{padding:5px 12px;border-radius:7px;font-size:11px;font-weight:600;font-family:var(--mono);letter-spacing:.5px;min-width:52px;text-align:center;}
+.s-buy{background:rgba(46,213,115,0.13);color:var(--success);border:1px solid rgba(46,213,115,0.28);}
+.s-sell{background:rgba(255,68,85,0.13);color:var(--danger);border:1px solid rgba(255,68,85,0.28);}
+.s-hold{background:rgba(255,179,0,0.13);color:var(--warn);border:1px solid rgba(255,179,0,0.28);}
+.sinfo{flex:1;min-width:0;}
+.ssym{font-size:14px;font-weight:600;font-family:var(--disp);}
+.smeta{font-size:11px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sprice{text-align:right;flex-shrink:0;}
+.sltp{font-size:14px;font-weight:600;font-family:var(--mono);}
+.sconf{font-size:10px;color:var(--text2);margin-top:2px;}
+.cbar{width:56px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:4px;}
+.cfill{height:100%;border-radius:2px;}
+.cf-hi{background:var(--success)}.cf-med{background:var(--warn)}.cf-lo{background:var(--danger)}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:3px;background:var(--bg3);border-radius:9px;padding:3px;margin-bottom:18px;flex-wrap:wrap;}
+.tab{padding:7px 16px;border-radius:6px;font-size:12.5px;cursor:pointer;color:var(--text2);transition:all .15s;font-weight:500;}
+.tab.active{background:var(--card2);color:var(--text);border:1px solid var(--border2);}
+.tab:hover:not(.active){color:var(--text);}
+
+/* ── TABLE ── */
+.dtable{width:100%;border-collapse:collapse;}
+.dtable th{text-align:left;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);padding:9px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);}
+.dtable td{padding:10px 10px;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.025);font-family:var(--mono);}
+.dtable tr:hover td{background:rgba(255,255,255,0.015);}
+.dtable tr:last-child td{border-bottom:none;}
+.tscroll{max-height:400px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
+
+/* ── FILTER PILLS ── */
+.fpill{padding:6px 14px;border-radius:20px;font-size:11.5px;border:1px solid var(--border2);cursor:pointer;transition:all .15s;color:var(--text2);background:transparent;font-family:var(--font);}
+.fpill.active,.fpill:hover{background:rgba(0,212,163,0.1);border-color:rgba(0,212,163,0.35);color:var(--accent);}
+.fsel{padding:7px 12px;border-radius:7px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:12px;font-family:var(--font);cursor:pointer;}
+.scan-btn{padding:8px 20px;background:var(--accent);color:#070b14;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);transition:all .2s;}
+.scan-btn:hover{opacity:.85;}
+.scan-btn:disabled{opacity:.5;cursor:wait;}
+.filters-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+
+/* ── SR ZONES ── */
+.srz{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;margin-bottom:7px;}
+.srz.res{background:rgba(255,68,85,0.07);border-left:3px solid var(--danger);}
+.srz.sup{background:rgba(46,213,115,0.07);border-left:3px solid var(--success);}
+.srz-price{font-size:15px;font-weight:600;font-family:var(--mono);}
+.srz-label{font-size:10px;color:var(--text2);font-family:var(--mono);}
+.srz-str{font-size:10px;font-family:var(--mono);margin-top:2px;}
+
+/* ── TOGGLE ── */
+.toggle-row{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--card2);border-radius:9px;margin-bottom:8px;cursor:pointer;}
+.sw{width:38px;height:20px;border-radius:10px;background:var(--border2);position:relative;transition:background .2s;flex-shrink:0;}
+.sw.on{background:var(--accent);}
+.sw-k{position:absolute;width:14px;height:14px;background:white;border-radius:50%;top:3px;left:3px;transition:left .2s;}
+.sw.on .sw-k{left:21px;}
+.trow-info{flex:1;font-size:13px;}
+.trow-sub{font-size:11px;color:var(--text2);margin-top:1px;}
+
+/* ── AD GAUGE ── */
+.adg{display:flex;height:8px;border-radius:4px;overflow:hidden;margin:5px 0;}
+.adg-a{background:var(--success);}
+.adg-d{background:var(--danger);}
+
+/* ── SECTOR BARS ── */
+.sbrow{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.sbname{font-size:12px;width:110px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sbbg{flex:1;height:7px;background:var(--border);border-radius:4px;overflow:hidden;}
+.sbfill{height:100%;border-radius:4px;transition:width 1s ease;}
+.sbval{font-size:11px;font-family:var(--mono);width:48px;text-align:right;}
+
+/* ── CHART WRAP ── */
+.cw{position:relative;width:100%;}
+
+/* ── IPO CARD ── */
+.ipoc{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:15px;cursor:pointer;transition:all .2s;}
+.ipoc:hover{border-color:var(--border2);transform:translateY(-2px);}
+.ipoc-status{font-size:10px;letter-spacing:1px;text-transform:uppercase;font-family:var(--mono);margin-bottom:7px;}
+.ipoc-name{font-family:var(--disp);font-size:15px;font-weight:700;margin-bottom:3px;}
+.ipoc-sect{font-size:11px;color:var(--text2);margin-bottom:11px;}
+.ipoc-row{display:flex;justify-content:space-between;align-items:center;}
+.ipoc-plabel{font-size:10px;color:var(--text2);font-family:var(--mono);}
+.ipoc-pval{font-size:16px;font-weight:700;font-family:var(--mono);color:var(--accent);}
+
+/* ── ALERT ROW ── */
+.arow{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid var(--border);}
+.arow:last-child{border-bottom:none;}
+.aicon{width:34px;height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.ai-g{background:rgba(46,213,115,0.1);}
+.ai-r{background:rgba(255,68,85,0.1);}
+.ai-b{background:rgba(0,153,255,0.1);}
+.ai-a{background:rgba(255,179,0,0.1);}
+.atext{flex:1;}
+.atitle{font-size:12.5px;font-weight:500;}
+.asub{font-size:11px;color:var(--text2);margin-top:2px;}
+.atime{font-size:10px;color:var(--text3);font-family:var(--mono);}
+
+/* ── BT METRICS ── */
+.btr{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
+.btm{text-align:center;padding:14px;background:var(--card2);border-radius:9px;}
+.btm-v{font-size:20px;font-family:var(--disp);font-weight:700;}
+.btm-l{font-size:10px;color:var(--text2);margin-top:3px;font-family:var(--mono);}
+
+/* ── FUNDA FILTER GRID ── */
+.ffg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.ffi label{font-size:10px;color:var(--text2);display:block;margin-bottom:4px;font-family:var(--mono);}
+.ffi input,.ffi select{width:100%;padding:7px 10px;background:var(--card2);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:12px;font-family:var(--font);}
+
+/* ── NOTIF PANEL ── */
+.np{position:fixed;right:18px;top:64px;width:320px;background:var(--bg2);border:1px solid var(--border2);border-radius:13px;z-index:150;display:none;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+.np.open{display:block;}
+.np-hdr{padding:14px 18px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;display:flex;justify-content:space-between;align-items:center;}
+.np-item{padding:11px 18px;border-bottom:1px solid var(--border);display:flex;gap:11px;align-items:flex-start;cursor:default;}
+.np-item:hover{background:rgba(255,255,255,0.02);}
+.np-dot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+.np-txt{font-size:12px;}
+.np-time{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:3px;}
+
+/* ── PROGRESS ── */
+.pbar{width:100%;height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin:5px 0;}
+.pfill{height:100%;border-radius:3px;}
+
+/* ── LOADING ── */
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--text2);font-size:13px;gap:10px;}
+.spin{width:18px;height:18px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── COMP SCORE ── */
+.comp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+.comp-item{padding:10px;background:var(--card2);border-radius:8px;}
+.comp-name{font-size:10px;color:var(--text2);font-family:var(--mono);margin-bottom:4px;}
+.comp-val{font-size:13px;font-weight:600;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1100px){.g4{grid-template-columns:repeat(2,1fr)}.btr{grid-template-columns:repeat(2,1fr)}.ffg{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.sidebar{width:200px}.main{margin-left:200px}.gm{grid-template-columns:1fr}.g2{grid-template-columns:1fr}}
+@media(max-width:640px){.sidebar{display:none}.main{margin-left:0}}
+
+/* ── FLASH ── */
+@keyframes flash{0%{background:rgba(0,212,163,0.15)}100%{background:transparent}}
+.flash{animation:flash .8s ease;}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">NepTrade Pro</div>
+    <div class="logo-sub">NEPSE Intelligence · Free</div>
+  </div>
+  <nav class="nav">
+    <div class="nsec">Market</div>
+    <div class="ni active" onclick="nav('dashboard')"><span class="ni-icon">📊</span>Dashboard<span class="nbadge nb-live">LIVE</span></div>
+    <div class="ni" onclick="nav('signals')"><span class="ni-icon">🎯</span>Signals<span class="nbadge nb-new" id="sig-count">—</span></div>
+    <div class="ni" onclick="nav('scanner')"><span class="ni-icon">🔍</span>Advanced Scanner</div>
+    <div class="ni" onclick="nav('charts')"><span class="ni-icon">📈</span>Charts & Analytics</div>
+
+    <div class="nsec">Analysis</div>
+    <div class="ni" onclick="nav('volume')"><span class="ni-icon">📦</span>Volume Analytics</div>
+    <div class="ni" onclick="nav('broker')"><span class="ni-icon">🏦</span>Broker Analytics</div>
+    <div class="ni" onclick="nav('sr')"><span class="ni-icon">🎯</span>Support & Resistance</div>
+    <div class="ni" onclick="nav('fundamental')"><span class="ni-icon">📋</span>Fundamentals</div>
+
+    <div class="nsec">Tools</div>
+    <div class="ni" onclick="nav('backtest')"><span class="ni-icon">⚙️</span>Backtesting</div>
+    <div class="ni" onclick="nav('ipo')"><span class="ni-icon">🚀</span>IPO / Rights / MF</div>
+    <div class="ni" onclick="nav('portfolio')"><span class="ni-icon">💼</span>Portfolio</div>
+    <div class="ni" onclick="nav('alerts')"><span class="ni-icon">🔔</span>Alerts<span class="nbadge nb-new">5</span></div>
+  </nav>
+  <div class="free-badge">
+    <div class="fb-label">Platform</div>
+    <div class="fb-val">100% FREE</div>
+    <div class="fb-sub">All features unlocked · No subscription</div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="ticker-scroll">
+      <div class="ti"><span class="ti-name">NEPSE</span><span class="ti-val" id="t-nepse">—</span><span class="ti-chg" id="t-nepse-c">—</span></div>
+      <div class="ti"><span class="ti-name">Sensitive</span><span class="ti-val" id="t-sens">—</span></div>
+      <div class="ti"><span class="ti-name">Turnover</span><span class="ti-val" id="t-turn">—</span></div>
+      <div class="ti"><span class="ti-name">Txn</span><span class="ti-val" id="t-txn">—</span></div>
+    </div>
+    <div class="mkt-status" id="mkt-status"><span class="sdot sdot-green"></span>Loading...</div>
+    <div class="tbtn" onclick="toggleNotif()">🔔<span class="nbadge-abs">5</span></div>
+    <div class="tbtn" id="ws-status" title="WebSocket">📡</div>
+  </div>
+
+  <!-- NOTIFICATION PANEL -->
+  <div class="np" id="np">
+    <div class="np-hdr">Alerts<span style="font-size:11px;color:var(--accent);cursor:pointer" onclick="closeNP()">Mark read</span></div>
+    <div class="np-item"><div class="np-dot" style="background:var(--success)"></div><div><div class="np-txt"><b>BUY:</b> NABIL — RSI reversal + volume surge</div><div class="np-time">2 min ago</div></div></div>
+    <div class="np-item"><div class="np-dot" style="background:var(--danger)"></div><div><div class="np-txt"><b>Breakout:</b> CHILIME crossed Rs 720 resistance</div><div class="np-time">8 min ago</div></div></div>
+    <div class="np-item"><div class="np-dot" style="background:var(--warn)"></div><div><div class="np-txt"><b>IPO Alert:</b> Summit Laghubitta closes tomorrow</div><div class="np-time">1 hr ago</div></div></div>
+    <div class="np-item"><div class="np-dot" style="background:var(--a2)"></div><div><div class="np-txt"><b>Portfolio:</b> GBIME hit take-profit level</div><div class="np-time">2 hr ago</div></div></div>
+    <div class="np-item"><div class="np-dot" style="background:var(--accent)"></div><div><div class="np-txt"><b>SMS Sent:</b> SELL signal for NICA delivered</div><div class="np-time">3 hr ago</div></div></div>
+  </div>
+
+  <!-- ════ DASHBOARD ════ -->
+  <div class="page active" id="p-dashboard">
+    <div class="ph"><div><div class="ph-title">Market Dashboard</div><div class="ph-sub">Last update: <span id="lu" style="font-family:var(--mono);color:var(--accent)">—</span></div></div><div class="live-tag"><span class="sdot sdot-red"></span>LIVE</div></div>
+    <div class="g4 mb" id="dash-metrics"></div>
+    <div class="gm mb">
+      <div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><div class="ctitle">NEPSE Intraday</div><div style="display:flex;gap:5px"><span class="fpill active" style="padding:3px 9px;font-size:10px">1D</span><span class="fpill" style="padding:3px 9px;font-size:10px">1W</span><span class="fpill" style="padding:3px 9px;font-size:10px">1M</span></div></div><div class="cw" style="height:240px"><canvas id="nepseChart"></canvas></div></div>
+      <div class="card"><div class="ctitle">Sector Performance</div><div id="sectors-list"></div></div>
+    </div>
+    <div class="g3 mb">
+      <div class="card"><div class="ctitle">Live Buy/Sell Volume</div><div id="vol-list"></div></div>
+      <div class="card" style="grid-column:span 2"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><div class="ctitle">Latest Signals</div><span onclick="nav('signals')" style="font-size:11px;color:var(--accent);cursor:pointer">All →</span></div><div id="dash-signals"><div class="loading"><div class="spin"></div>Loading signals...</div></div></div>
+    </div>
+  </div>
+
+  <!-- ════ SIGNALS ════ -->
+  <div class="page" id="p-signals">
+    <div class="ph"><div><div class="ph-title">Algorithmic Signals</div><div class="ph-sub">Composite RSI + MACD + Bollinger + EMA + SuperTrend + Candlestick scoring</div></div><div class="live-tag"><span class="sdot sdot-red"></span>LIVE</div></div>
+    <div class="tabs">
+      <div class="tab active" onclick="filterSig('all',this)">All</div>
+      <div class="tab" onclick="filterSig('buy',this)">Buy</div>
+      <div class="tab" onclick="filterSig('hold',this)">Hold</div>
+      <div class="tab" onclick="filterSig('sell',this)">Sell</div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:16px">
+      <input id="sig-search" placeholder="Search symbol..." oninput="renderSignals()" style="flex:1;padding:9px 14px;background:var(--card);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-family:var(--font);font-size:13px">
+      <select class="fsel" id="sig-sector" onchange="renderSignals()">
+        <option value="">All Sectors</option>
+        <option>Banking</option><option>Development Bank</option><option>Hydro</option><option>Microfinance</option><option>Life Insurance</option><option>Telecom</option><option>Investment</option><option>Mutual Fund</option>
+      </select>
+    </div>
+    <div id="signals-list"><div class="loading"><div class="spin"></div>Computing signals...</div></div>
+  </div>
+
+  <!-- ════ SCANNER ════ -->
+  <div class="page" id="p-scanner">
+    <div class="ph"><div><div class="ph-title">Advanced Scanner</div><div class="ph-sub">Multi-criteria screening — all NEPSE securities</div></div></div>
+    <div class="card mb">
+      <div class="ctitle">Technical Filters</div>
+      <div class="filters-row mb">
+        <button class="fpill" id="f-oversold" onclick="toggleF(this,'oversold')">RSI Oversold (&lt;35)</button>
+        <button class="fpill" id="f-macdBullish" onclick="toggleF(this,'macdBullish')">MACD Bullish</button>
+        <button class="fpill" id="f-breakout" onclick="toggleF(this,'breakout')">Breakout Score</button>
+        <button class="fpill" id="f-volumeSpike" onclick="toggleF(this,'volumeSpike')">Volume Spike</button>
+        <button class="fpill" id="f-buy" onclick="toggleF(this,'buy')">BUY Signal Only</button>
+        <button class="scan-btn" id="scan-btn" onclick="runScan()" style="margin-left:auto">▶ Run Scan</button>
+      </div>
+      <div class="ctitle" style="margin-top:14px">Fundamental Filters</div>
+      <div class="ffg">
+        <div class="ffi"><label>Max P/E</label><input type="number" id="f-pe" placeholder="e.g. 15"></div>
+        <div class="ffi"><label>Min EPS</label><input type="number" id="f-eps" placeholder="e.g. 20"></div>
+        <div class="ffi"><label>Min Confidence %</label><input type="number" id="f-conf" value="60" min="0" max="100"></div>
+        <div class="ffi"><label>Sector</label><select id="f-sect" class="fsel" style="width:100%"><option value="">All</option><option>Banking</option><option>Hydro</option><option>Microfinance</option><option>Development Bank</option></select></div>
+        <div class="ffi"><label>Signal</label><select id="f-action" class="fsel" style="width:100%"><option value="">All</option><option value="buy">BUY</option><option value="hold">HOLD</option><option value="sell">SELL</option></select></div>
+        <div class="ffi"><label>Min RSI</label><input type="number" id="f-rsiMin" placeholder="0"></div>
+      </div>
+    </div>
+    <div class="card" id="scan-results">
+      <div class="ctitle" id="scan-title">Run scan to see results</div>
+      <div id="scan-body" style="color:var(--text2);text-align:center;padding:36px;font-size:13px">Configure filters and click Run Scan</div>
+    </div>
+  </div>
+
+  <!-- ════ CHARTS ════ -->
+  <div class="page" id="p-charts">
+    <div class="ph"><div><div class="ph-title">Charts & Analytics</div><div class="ph-sub">RSI, MACD, Bollinger Bands, EMA overlays with signal markers</div></div></div>
+    <div class="card mb">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <select class="fsel" id="chart-sym" onchange="loadChartData()" style="font-size:13px;padding:8px 14px">
+          <option>NABIL</option><option>PRVU</option><option>EBL</option><option>CHILIME</option><option>NTC</option><option>GBIME</option><option>NICA</option><option>UPPER</option><option>MLBSL</option><option>NHPC</option>
+        </select>
+        <div style="display:flex;gap:5px">
+          <span class="fpill active" style="padding:4px 10px;font-size:11px" onclick="setCA(this,'60')">60D</span>
+          <span class="fpill" style="padding:4px 10px;font-size:11px" onclick="setCA(this,'90')">90D</span>
+          <span class="fpill" style="padding:4px 10px;font-size:11px" onclick="setCA(this,'120')">120D</span>
+        </div>
+        <div style="display:flex;gap:5px;margin-left:auto;flex-wrap:wrap">
+          <span class="fpill active" style="padding:4px 10px;font-size:11px" id="ov-ema20">EMA20</span>
+          <span class="fpill active" style="padding:4px 10px;font-size:11px" id="ov-ema50">EMA50</span>
+          <span class="fpill" style="padding:4px 10px;font-size:11px" id="ov-bb">Bollinger</span>
+          <span class="fpill active" style="padding:4px 10px;font-size:11px" id="ov-sigs">Signals</span>
+        </div>
+      </div>
+      <div class="cw" style="height:300px"><canvas id="stockChart"></canvas></div>
+    </div>
+    <div class="g2 mb">
+      <div class="card"><div class="ctitle">RSI (14)</div><div class="cw" style="height:130px"><canvas id="rsiChart"></canvas></div></div>
+      <div class="card"><div class="ctitle">MACD (12,26,9)</div><div class="cw" style="height:130px"><canvas id="macdChart"></canvas></div></div>
+    </div>
+    <div class="card" id="chart-signal-card" style="display:none">
+      <div class="ctitle">Signal Analysis</div>
+      <div id="chart-signal-body"></div>
+    </div>
+  </div>
+
+  <!-- ════ VOLUME ════ -->
+  <div class="page" id="p-volume">
+    <div class="ph"><div><div class="ph-title">Volume Analytics</div><div class="ph-sub">Real-time buy/sell pressure, OBV, Accumulation/Distribution, Block trades</div></div></div>
+    <div class="g4 mb" id="vol-metrics"></div>
+    <div class="gm mb">
+      <div class="card"><div class="ctitle">Volume by Stock (Top 15)</div><div class="cw" style="height:280px"><canvas id="volBarChart"></canvas></div></div>
+      <div class="card"><div class="ctitle">Accum / Distribution</div><div id="ad-list"><div class="loading"><div class="spin"></div></div></div></div>
+    </div>
+    <div class="card"><div class="ctitle">Block & Bulk Trades</div><div class="tscroll"><table class="dtable"><thead><tr><th>Time</th><th>Symbol</th><th>Qty</th><th>Price</th><th>Amount</th><th>Type</th><th>Buyer</th><th>Seller</th></tr></thead><tbody id="block-body"></tbody></table></div></div>
+  </div>
+
+  <!-- ════ BROKER ════ -->
+  <div class="page" id="p-broker">
+    <div class="ph"><div><div class="ph-title">Broker Analytics</div><div class="ph-sub">Broker-wise buy/sell flow, net positions, institutional tracking</div></div></div>
+    <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px">
+      <select class="fsel" id="broker-sym" onchange="loadBrokerData()" style="font-size:13px;padding:8px 14px">
+        <option>NABIL</option><option>PRVU</option><option>EBL</option><option>CHILIME</option><option>NTC</option><option>GBIME</option>
+      </select>
+      <span style="font-size:12px;color:var(--text2)">Select stock to view broker activity</span>
+    </div>
+    <div class="g2 mb">
+      <div class="card"><div class="ctitle">Top Buying Brokers</div><table class="dtable"><thead><tr><th>Broker</th><th>Name</th><th>Buy Vol</th><th>Share%</th></tr></thead><tbody id="buy-brokers"></tbody></table></div>
+      <div class="card"><div class="ctitle">Top Selling Brokers</div><table class="dtable"><thead><tr><th>Broker</th><th>Name</th><th>Sell Vol</th><th>Share%</th></tr></thead><tbody id="sell-brokers"></tbody></table></div>
+    </div>
+    <div class="card"><div class="ctitle">Broker Net Position</div><div class="cw" style="height:200px"><canvas id="brokerChart"></canvas></div></div>
+  </div>
+
+  <!-- ════ SUPPORT & RESISTANCE ════ -->
+  <div class="page" id="p-sr">
+    <div class="ph"><div><div class="ph-title">Support & Resistance</div><div class="ph-sub">Algo-detected key levels with breakout alerts</div></div></div>
+    <div style="display:flex;gap:10px;margin-bottom:18px">
+      <select class="fsel" id="sr-sym" onchange="loadSRData()" style="font-size:13px;padding:8px 14px">
+        <option>NABIL</option><option>PRVU</option><option>CHILIME</option><option>NTC</option><option>GBIME</option><option>NICA</option><option>EBL</option>
+      </select>
+    </div>
+    <div class="gm">
+      <div class="card"><div class="ctitle">Price Chart with S/R Zones</div><div class="cw" style="height:300px"><canvas id="srChart"></canvas></div></div>
+      <div class="card">
+        <div id="sr-levels"><div class="loading"><div class="spin"></div></div></div>
+        <div style="margin-top:18px">
+          <div class="ctitle">Breakout Alerts</div>
+          <div class="toggle-row" onclick="toggleSW(this)"><div class="sw on"><div class="sw-k"></div></div><div class="trow-info">Alert on resistance break<div class="trow-sub">Push + SMS + Email</div></div></div>
+          <div class="toggle-row" onclick="toggleSW(this)"><div class="sw"><div class="sw-k"></div></div><div class="trow-info">Alert on support break<div class="trow-sub">Push only</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ FUNDAMENTAL ════ -->
+  <div class="page" id="p-fundamental">
+    <div class="ph"><div><div class="ph-title">Fundamental Analysis</div><div class="ph-sub">Combined technical + fundamental screening</div></div></div>
+    <div class="card mb">
+      <div class="ctitle">Filters</div>
+      <div class="filters-row mb" style="flex-wrap:wrap;gap:7px">
+        <button class="fpill active" onclick="this.classList.toggle('active')">Undervalued</button>
+        <button class="fpill" onclick="this.classList.toggle('active')">High Dividend</button>
+        <button class="fpill" onclick="this.classList.toggle('active')">Strong EPS</button>
+        <button class="fpill" onclick="this.classList.toggle('active')">Low P/E</button>
+        <button class="fpill" onclick="this.classList.toggle('active')">High ROE</button>
+        <button class="scan-btn" onclick="loadFunda()" style="margin-left:auto">Apply</button>
+      </div>
+    </div>
+    <div class="card"><div class="ctitle">Fundamental Screen</div><div class="tscroll"><table class="dtable"><thead><tr><th>Symbol</th><th>LTP</th><th>EPS</th><th>P/E</th><th>P/B</th><th>ROE%</th><th>Div%</th><th>RSI</th><th>Signal</th></tr></thead><tbody id="funda-body"></tbody></table></div></div>
+  </div>
+
+  <!-- ════ BACKTEST ════ -->
+  <div class="page" id="p-backtest">
+    <div class="ph"><div><div class="ph-title">Backtesting Engine</div><div class="ph-sub">Test strategies on historical NEPSE data</div></div></div>
+    <div class="g2 mb">
+      <div class="card">
+        <div class="ctitle">Strategy Config</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div><label style="font-size:10px;color:var(--text2);display:block;margin-bottom:4px;font-family:var(--mono)">Stock</label><select class="fsel" id="bt-sym" style="width:100%"><option>NABIL</option><option>PRVU</option><option>CHILIME</option><option>NTC</option><option>EBL</option><option>GBIME</option></select></div>
+          <div><label style="font-size:10px;color:var(--text2);display:block;margin-bottom:4px;font-family:var(--mono)">Strategy</label><select class="fsel" id="bt-strat" style="width:100%"><option value="rsi">RSI Reversal (30/70)</option><option value="ema">EMA Crossover (20/50)</option></select></div>
+          <div><label style="font-size:10px;color:var(--text2);display:block;margin-bottom:4px;font-family:var(--mono)">Capital (Rs)</label><input type="number" id="bt-cap" value="100000" style="width:100%;padding:8px 10px;background:var(--card2);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:var(--font);font-size:13px"></div>
+          <button class="scan-btn" id="bt-btn" onclick="runBacktest()" style="width:100%;padding:12px">▶ Run Backtest</button>
+        </div>
+      </div>
+      <div class="card" id="bt-results" style="display:none">
+        <div class="ctitle">Results</div>
+        <div class="btr" id="bt-metrics"></div>
+        <div class="cw" style="height:160px"><canvas id="btChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ IPO ════ -->
+  <div class="page" id="p-ipo">
+    <div class="ph"><div><div class="ph-title">IPO / Rights / Mutual Funds</div><div class="ph-sub">New listings, rights issues, mutual fund analytics</div></div></div>
+    <div class="tabs">
+      <div class="tab active" onclick="setTab(this)">All</div>
+      <div class="tab" onclick="setTab(this)">Open</div>
+      <div class="tab" onclick="setTab(this)">Upcoming</div>
+      <div class="tab" onclick="setTab(this)">Rights</div>
+      <div class="tab" onclick="setTab(this)">Closed</div>
+    </div>
+    <div class="g3" id="ipo-grid"><div class="loading"><div class="spin"></div>Loading...</div></div>
+  </div>
+
+  <!-- ════ PORTFOLIO ════ -->
+  <div class="page" id="p-portfolio">
+    <div class="ph"><div><div class="ph-title">Portfolio</div><div class="ph-sub">Holdings tracker with live P&amp;L and signal integration</div></div></div>
+    <div class="g2 mb">
+      <div class="mc g"><div class="mc-label">Portfolio Value</div><div class="mc-val up" id="pf-val">Rs —</div><div class="mc-chg up" id="pf-chg">—</div></div>
+      <div class="mc b"><div class="mc-label">Total Invested</div><div class="mc-val" style="color:var(--a2)">Rs 3,50,000</div><div class="mc-chg up" id="pf-pl">—</div></div>
+    </div>
+    <div class="card mb">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><div class="ctitle">Holdings</div><button class="scan-btn" style="font-size:11px;padding:5px 14px" onclick="addHolding()">+ Add</button></div>
+      <div class="tscroll"><table class="dtable"><thead><tr><th>Symbol</th><th>Qty</th><th>Avg</th><th>LTP</th><th>Value</th><th>P&amp;L</th><th>%</th><th>Signal</th></tr></thead><tbody id="pf-body"></tbody></table></div>
+    </div>
+    <div class="g2">
+      <div class="card"><div class="ctitle">Allocation</div><div class="cw" style="height:200px"><canvas id="allocChart"></canvas></div></div>
+      <div class="card">
+        <div class="ctitle">Portfolio Alerts</div>
+        <div class="toggle-row" onclick="toggleSW(this)"><div class="sw on"><div class="sw-k"></div></div><div class="trow-info">5% daily move alert<div class="trow-sub">Push + Email</div></div></div>
+        <div class="toggle-row" onclick="toggleSW(this)"><div class="sw on"><div class="sw-k"></div></div><div class="trow-info">Signal for any holding<div class="trow-sub">Push + SMS + Email</div></div></div>
+        <div class="toggle-row" onclick="toggleSW(this)"><div class="sw"><div class="sw-k"></div></div><div class="trow-info">Dividend announcements<div class="trow-sub">Email only</div></div></div>
+        <div class="toggle-row" onclick="toggleSW(this)"><div class="sw on"><div class="sw-k"></div></div><div class="trow-info">Rights issue alerts<div class="trow-sub">Push + Email</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ ALERTS ════ -->
+  <div class="page" id="p-alerts">
+    <div class="ph"><div><div class="ph-title">Alerts & Notifications</div><div class="ph-sub">SMS, Push, Email — fully configurable</div></div></div>
+    <div class="g2 mb">
+      <div class="card">
+        <div class="ctitle">Delivery Channels</div>
+        <div class="toggle-row" onclick="toggleSW(this)"><div class="sw on"><div class="sw-k"></div></div><div class="trow-info">📱 SMS Alerts<div class="trow-sub">All buy/sell signals</div></div></div>
+        <div class="toggle-row" onclick="toggleSW(this)"><div class="sw on"><div class="sw-k"></div></div><div class="trow-info">🔔 Push Notifications<div class="trow-sub">Real-time, all devices</div></div></div>
+        <div class="toggle-row" onclick="toggleSW(this)"><div class="sw on"><div class="sw-k"></div></div><div class="trow-info">📧 Email Digest<div class="trow-sub">Daily summary + instant</div></div></div>
+      </div>
+      <div class="card">
+        <div class="ctitle">Alert Types</div>
+        <div class="toggle-row" onclick="toggleSW(this)"><div class="sw on"><div class="sw-k"></div></div><div class="trow-info">Buy/Sell Signals<div class="trow-sub">Algorithmic trade signals</div></div></div>
+        <div class="toggle-row" onclick="toggleSW(this)"><div class="sw on"><div class="sw-k"></div></div><div class="trow-info">Level Breakout Alerts<div class="trow-sub">S/R breaks</div></div></div>
+        <div class="toggle-row" onclick="toggleSW(this)"><div class="sw"><div class="sw-k"></div></div><div class="trow-info">Volume Spike<div class="trow-sub">Unusual volume</div></div></div>
+        <div class="toggle-row" onclick="toggleSW(this)"><div class="sw on"><div class="sw-k"></div></div><div class="trow-info">IPO/Rights<div class="trow-sub">New listing notifications</div></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ctitle">Active Level Alerts</div>
+      <div id="alerts-list">
+        <div class="arow"><div class="aicon ai-g">↑</div><div class="atext"><div class="atitle">NABIL — Break above Rs 1,240</div><div class="asub">Push + SMS + Email</div></div><div class="atime">Active</div></div>
+        <div class="arow"><div class="aicon ai-r">↓</div><div class="atext"><div class="atitle">PRVU — Break below Rs 400</div><div class="asub">Push only</div></div><div class="atime">Active</div></div>
+        <div class="arow"><div class="aicon ai-g">↑</div><div class="atext"><div class="atitle">CHILIME — Break above Rs 720</div><div class="asub">Push + Email</div></div><div class="atime">Active</div></div>
+        <div class="arow"><div class="aicon ai-r">↓</div><div class="atext"><div class="atitle">NICA — Break below Rs 800</div><div class="asub">Push + SMS</div></div><div class="atime">Active</div></div>
+      </div>
+      <button class="scan-btn" style="margin-top:16px;font-size:12px;padding:7px 18px" onclick="addAlert()">+ Add Level Alert</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── API BASE ────────────────────────────────────────────────────────────────
+const API = window.location.origin + '/api';
+let WS, wsConnected = false;
+let allSignals = [], signalFilter = 'all';
+let chartDays = '60', chartSymbol = 'NABIL';
+let stockChartInst, rsiChartInst, macdChartInst, volChartInst, brokerChartInst, srChartInst, btChartInst, allocChartInst;
+
+const portfolio = [
+  { sym:'NABIL', qty:20, avg:1050 },
+  { sym:'CHILIME', qty:50, avg:640 },
+  { sym:'NTC', qty:15, avg:720 },
+  { sym:'GBIME', qty:100, avg:290 },
+  { sym:'EBL', qty:10, avg:980 },
+];
+
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+const $id = id => document.getElementById(id);
+const fmt = (n, d=2) => n == null ? '—' : parseFloat(n).toLocaleString('en-IN', { maximumFractionDigits: d });
+const signCls = v => v >= 0 ? 'up' : 'down';
+const signStr = v => v >= 0 ? `+${fmt(v)}` : fmt(v);
+
+async function apiFetch(path, opts = {}) {
+  try {
+    const r = await fetch(API + path, { ...opts, headers: { 'Content-Type': 'application/json', ...(opts.headers||{}) } });
+    return await r.json();
+  } catch (e) {
+    console.warn('API error:', path, e.message);
+    return { success: false };
+  }
+}
+
+// ─── WEBSOCKET ───────────────────────────────────────────────────────────────
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  WS = new WebSocket(`${proto}://${location.host}`);
+  WS.onopen = () => { wsConnected = true; $id('ws-status').title = 'Live'; };
+  WS.onclose = () => { wsConnected = false; setTimeout(connectWS, 3000); };
+  WS.onmessage = evt => {
+    try {
+      const msg = JSON.parse(evt.data);
+      if (msg.type === 'index_update') updateIndex(msg.data);
+      if (msg.type === 'quotes_update') updateQuotes(msg.data);
+      if (msg.type === 'signal_update') handleSignalUpdate(msg.data);
+      if (msg.type === 'snapshot') { updateIndex(msg.index); updateQuotes(msg.quotes); }
+    } catch(_) {}
+  };
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────────
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(n => n.classList.remove('active'));
+  $id('p-' + page).classList.add('active');
+  document.querySelectorAll('.ni').forEach(n => {
+    if (n.getAttribute('onclick')?.includes(`'${page}'`)) n.classList.add('active');
+  });
+  const loaders = {
+    signals: loadSignals, charts: () => loadChartData(),
+    volume: loadVolume, broker: loadBrokerData,
+    sr: loadSRData, fundamental: loadFunda,
+    ipo: loadIPO, portfolio: loadPortfolio,
+  };
+  if (loaders[page]) loaders[page]();
+}
+
+// ─── INDEX UPDATE ─────────────────────────────────────────────────────────────
+function updateIndex(d) {
+  $id('t-nepse').textContent = fmt(d.nepse);
+  const cc = d.changePercent >= 0 ? 'up-bg' : 'dn-bg';
+  $id('t-nepse-c').className = `ti-chg ${cc}`;
+  $id('t-nepse-c').textContent = `${d.changePercent >= 0 ? '+' : ''}${fmt(d.changePercent)}%`;
+  $id('t-sens').textContent = fmt(d.sensitive);
+  $id('t-turn').textContent = `Rs ${(d.turnover/1e7).toFixed(1)}Cr`;
+  $id('t-txn').textContent = fmt(d.transactions, 0);
+  const ms = $id('mkt-status');
+  ms.className = `mkt-status ${d.isMarketOpen ? 'mkt-open' : 'mkt-closed'}`;
+  ms.innerHTML = `<span class="sdot ${d.isMarketOpen ? 'sdot-green' : 'sdot-red'}"></span>${d.isMarketOpen ? 'Market Open' : 'Market Closed'}`;
+  $id('lu').textContent = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  // Update dash metrics
+  renderDashMetrics(d);
+}
+
+function updateQuotes(quotes) {
+  renderVolList(quotes);
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+function renderDashMetrics(idx) {
+  $id('dash-metrics').innerHTML = `
+    <div class="mc g"><div class="mc-label">NEPSE Index</div><div class="mc-val up">${fmt(idx.nepse)}</div><div class="mc-chg ${idx.changePercent>=0?'up':'down'}">${signStr(idx.changePercent)}%</div></div>
+    <div class="mc b"><div class="mc-label">Turnover</div><div class="mc-val" style="color:var(--a2)">Rs ${(idx.turnover/1e7).toFixed(2)}Cr</div><div class="mc-chg up">▲ Active</div></div>
+    <div class="mc a"><div class="mc-label">Active Signals</div><div class="mc-val" style="color:var(--warn)">${allSignals.length || '—'}</div><div class="mc-chg" style="color:var(--text2)">${allSignals.filter(s=>s.action==='BUY').length} Buy · ${allSignals.filter(s=>s.action==='SELL').length} Sell</div></div>
+    <div class="mc ${idx.changePercent>=0?'g':'r'}"><div class="mc-label">Market Mood</div><div class="mc-val ${idx.changePercent>=0?'up':'down'}">${idx.changePercent>=0?'Bullish':'Bearish'}</div><div class="mc-chg ${idx.changePercent>=0?'up':'down'}">${signStr(idx.change)} pts</div></div>`;
+}
+
+// ─── INIT INDEX ───────────────────────────────────────────────────────────────
+async function initDashboard() {
+  const [idxRes, sectorRes] = await Promise.all([
+    apiFetch('/index'), apiFetch('/sectors')
+  ]);
+  if (idxRes.success) updateIndex(idxRes.data);
+  if (sectorRes.success) renderSectors(sectorRes.data);
+  initNepseChart();
+  loadDashSignals();
+  initVolList();
+}
+
+function renderSectors(sectors) {
+  const cont = $id('sectors-list');
+  cont.innerHTML = sectors.map(s => {
+    const pct = Math.min(100, Math.abs(s.change) * 18 + 25);
+    const col = s.change >= 0 ? 'var(--success)' : 'var(--danger)';
+    return `<div class="sbrow"><div class="sbname">${s.name}</div><div class="sbbg"><div class="sbfill" style="width:${pct}%;background:${col}"></div></div><div class="sbval ${s.change>=0?'up':'down'}">${s.change>=0?'+':''}${s.change}%</div></div>`;
+  }).join('');
+}
+
+async function initVolList() {
+  const res = await apiFetch('/volume');
+  if (res.success) renderVolList(res.data);
+}
+
+function renderVolList(data) {
+  const cont = $id('vol-list');
+  if (!cont) return;
+  const top6 = data.slice(0, 6);
+  cont.innerHTML = top6.map(s => `
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+        <span style="font-family:var(--mono);font-weight:600">${s.symbol}</span>
+        <span style="font-size:10px;color:var(--text2)">B:${s.buyPercent}% S:${s.sellPercent}%</span>
+      </div>
+      <div class="adg"><div class="adg-a" style="width:${s.buyPercent}%"></div><div class="adg-d" style="width:${s.sellPercent}%"></div></div>
+    </div>`).join('');
+}
+
+// ─── NEPSE CHART (dashboard) ──────────────────────────────────────────────────
+let dashChart;
+async function initNepseChart() {
+  const res = await apiFetch('/indicators/NABIL?days=60');
+  if (!res.success) return;
+  const { dates, ohlcv } = res.data;
+  let base = 2100, vals = dates.map(() => { base += (Math.random()-0.47)*8; return +base.toFixed(2); });
+  const ctx = $id('nepseChart');
+  if (dashChart) dashChart.destroy();
+  dashChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: dates, datasets: [{ data: vals, borderColor:'#00d4a3', backgroundColor:'rgba(0,212,163,0.05)', fill:true, tension:.4, pointRadius:0, borderWidth:2 }] },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} },
+      scales:{ x:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#8892aa',font:{size:9,family:'JetBrains Mono'},maxTicksLimit:8}},
+               y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#8892aa',font:{size:9,family:'JetBrains Mono'}}} } }
+  });
+}
+
+// ─── SIGNALS ─────────────────────────────────────────────────────────────────
+async function loadSignals() {
+  if (allSignals.length > 0) { renderSignals(); return; }
+  $id('signals-list').innerHTML = '<div class="loading"><div class="spin"></div>Computing signals using composite algorithm...</div>';
+  const res = await apiFetch('/signals');
+  if (res.success) {
+    allSignals = res.data;
+    $id('sig-count').textContent = allSignals.filter(s=>s.action==='BUY').length;
+    renderSignals();
+    loadDashSignals();
+    renderDashMetrics({}); // refresh count
+  }
+}
+
+async function loadDashSignals() {
+  if (allSignals.length === 0) {
+    const res = await apiFetch('/signals');
+    if (res.success) allSignals = res.data;
+  }
+  const cont = $id('dash-signals');
+  if (!cont) return;
+  const top5 = allSignals.slice(0, 5);
+  cont.innerHTML = top5.map(s => signalCard(s)).join('');
+}
+
+function filterSig(f, el) {
+  signalFilter = f;
+  document.querySelectorAll('#p-signals .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderSignals();
+}
+
+function renderSignals() {
+  const search = ($id('sig-search')?.value || '').toUpperCase();
+  const sector = $id('sig-sector')?.value || '';
+  let sigs = allSignals;
+  if (signalFilter !== 'all') sigs = sigs.filter(s => s.action === signalFilter.toUpperCase());
+  if (search) sigs = sigs.filter(s => s.symbol.includes(search) || (s.name||'').toUpperCase().includes(search));
+  if (sector) sigs = sigs.filter(s => s.sector === sector);
+  $id('signals-list').innerHTML = sigs.length ? sigs.map(s => signalCard(s, true)).join('') : '<div style="color:var(--text2);text-align:center;padding:40px">No signals match filters</div>';
+}
+
+function signalCard(s, showDetails = false) {
+  const cls = s.action === 'BUY' ? 's-buy' : s.action === 'SELL' ? 's-sell' : 's-hold';
+  const cfcls = s.confidence > 80 ? 'cf-hi' : s.confidence > 65 ? 'cf-med' : 'cf-lo';
+  const detail = showDetails ? `<div class="smeta" style="color:var(--success);margin-top:3px">Target: Rs ${fmt(s.target)} &nbsp;|&nbsp; <span style="color:var(--danger)">SL: Rs ${fmt(s.stopLoss)}</span></div>` : '';
+  return `<div class="sc" onclick="openSignalDetail('${s.symbol}')">
+    <div class="sbadge ${cls}">${s.action}</div>
+    <div class="sinfo">
+      <div class="ssym">${s.symbol} <span style="font-size:11px;color:var(--text2);font-weight:400">${s.name||''}</span></div>
+      <div class="smeta">${s.sector||''} · ${s.patterns?.length ? s.patterns[0] : (s.components?.rsi ? `RSI ${s.components.rsi.value}` : 'Composite signal')}</div>
+      ${detail}
+    </div>
+    <div class="sprice">
+      <div class="sltp">Rs ${fmt(s.ltp)}</div>
+      <div class="sconf">${s.confidence}% confidence</div>
+      <div class="cbar"><div class="cfill ${cfcls}" style="width:${s.confidence}%"></div></div>
+    </div>
+  </div>`;
+}
+
+async function openSignalDetail(symbol) {
+  const res = await apiFetch(`/signal/${symbol}`);
+  if (!res.success) return;
+  const s = res.data;
+  const win = window.open('', '_blank', 'width=600,height=700');
+  const cls = s.action === 'BUY' ? '#2ed573' : s.action === 'SELL' ? '#ff4455' : '#ffb300';
+  win.document.write(`<html><head><title>${symbol} Signal</title><style>body{font-family:'Outfit',sans-serif;background:#070b14;color:#e8eaf2;padding:24px;} h1{font-size:24px;color:${cls};} .row{display:flex;justify-content:space-between;border-bottom:1px solid #1a2238;padding:10px 0;font-size:14px;} .label{color:#8892aa;font-family:monospace;} .comp{background:#131a2b;border-radius:8px;padding:14px;margin:10px 0;} .comp-title{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#3a4460;margin-bottom:8px;font-family:monospace;}</style></head><body>
+    <h1>${symbol} — ${s.action}</h1>
+    <p style="color:#8892aa">${s.name} · ${s.sector}</p>
+    <div class="row"><span class="label">LTP</span><span>Rs ${fmt(s.ltp)}</span></div>
+    <div class="row"><span class="label">Target</span><span style="color:#2ed573">Rs ${fmt(s.target)}</span></div>
+    <div class="row"><span class="label">Stop Loss</span><span style="color:#ff4455">Rs ${fmt(s.stopLoss)}</span></div>
+    <div class="row"><span class="label">Confidence</span><span style="color:${cls}">${s.confidence}%</span></div>
+    <div class="row"><span class="label">Composite Score</span><span>${s.score > 0 ? '+' : ''}${s.score}</span></div>
+    <div class="row"><span class="label">RSI (14)</span><span>${s.rsi}</span></div>
+    <div class="row"><span class="label">MACD</span><span>${s.macdValue}</span></div>
+    <div class="row"><span class="label">EMA 20 / 50</span><span>${fmt(s.ema20)} / ${fmt(s.ema50)}</span></div>
+    ${s.patterns?.length ? `<div class="row"><span class="label">Patterns</span><span>${s.patterns.join(', ')}</span></div>` : ''}
+    <div class="comp"><div class="comp-title">Support Levels</div>${s.supports?.map(sr=>`<div class="row"><span class="label">Rs ${sr.price}</span><span style="color:#2ed573">Strength: ${sr.strength}</span></div>`).join('') || '—'}</div>
+    <div class="comp"><div class="comp-title">Resistance Levels</div>${s.resistances?.map(sr=>`<div class="row"><span class="label">Rs ${sr.price}</span><span style="color:#ff4455">Strength: ${sr.strength}</span></div>`).join('') || '—'}</div>
+  </body></html>`);
+}
+
+function handleSignalUpdate(sig) {
+  const idx = allSignals.findIndex(s => s.symbol === sig.symbol);
+  if (idx >= 0) allSignals[idx] = sig; else allSignals.unshift(sig);
+  if (document.querySelector('#p-signals.active')) renderSignals();
+  loadDashSignals();
+}
+
+// ─── SCANNER ─────────────────────────────────────────────────────────────────
+const activeFilters = {};
+function toggleF(el, key) {
+  el.classList.toggle('active');
+  if (el.classList.contains('active')) activeFilters[key] = true;
+  else delete activeFilters[key];
+}
+
+async function runScan() {
+  const btn = $id('scan-btn');
+  btn.disabled = true; btn.textContent = '⟳ Scanning...';
+  const body = {
+    ...activeFilters,
+    minConfidence: $id('f-conf').value,
+    sector: $id('f-sect').value,
+    action: $id('f-action').value,
+    minRSI: $id('f-rsiMin').value,
+  };
+  const res = await apiFetch('/scan', { method:'POST', body: JSON.stringify(body) });
+  btn.disabled = false; btn.textContent = '▶ Run Scan';
+  if (!res.success) return;
+  $id('scan-title').innerHTML = `Scan Results — <span style="color:var(--accent)">${res.count} stocks matched</span>`;
+  $id('scan-body').innerHTML = res.data.length ? `
+    <div style="overflow-x:auto">
+    <table class="dtable">
+      <thead><tr><th>Symbol</th><th>Sector</th><th>LTP</th><th>Signal</th><th>RSI</th><th>Score</th><th>Confidence</th><th>Target</th><th>SL</th></tr></thead>
+      <tbody>${res.data.map(r => {
+        const cls = r.action==='BUY'?'s-buy':r.action==='SELL'?'s-sell':'s-hold';
+        return `<tr><td style="font-weight:600;color:var(--accent)">${r.symbol}</td><td style="color:var(--text2)">${r.sector}</td><td>Rs ${fmt(r.ltp)}</td><td><span class="sbadge ${cls}" style="font-size:10px;padding:3px 8px">${r.action}</span></td><td class="${r.rsi<35?'up':r.rsi>70?'down':''}">${r.rsi}</td><td class="${r.score>0?'up':'down'}">${r.score>0?'+':''}${r.score}</td><td>${r.confidence}%</td><td class="up">Rs ${fmt(r.target)}</td><td class="down">Rs ${fmt(r.stopLoss)}</td></tr>`;
+      }).join('')}</tbody>
+    </table></div>` : '<div style="color:var(--text2);text-align:center;padding:30px">No stocks matched these filters</div>';
+}
+
+// ─── CHARTS ───────────────────────────────────────────────────────────────────
+function setCA(el, days) {
+  chartDays = days;
+  document.querySelectorAll('#p-charts .fpill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  loadChartData();
+}
+
+async function loadChartData() {
+  chartSymbol = $id('chart-sym')?.value || chartSymbol;
+  const res = await apiFetch(`/indicators/${chartSymbol}?days=${chartDays}`);
+  if (!res.success) return;
+  const { dates, ohlcv, indicators } = res.data;
+  const { opens, highs, lows, closes, volumes } = ohlcv;
+
+  // Signal markers
+  const sigRes = await apiFetch(`/signal/${chartSymbol}`);
+  const sig = sigRes.success ? sigRes.data : null;
+
+  // Stock Chart
+  if (stockChartInst) stockChartInst.destroy();
+  const datasets = [
+    { label:'Price', data:closes, borderColor:'#00d4a3', backgroundColor:'rgba(0,212,163,0.04)', fill:true, tension:.3, pointRadius:0, borderWidth:2 },
+  ];
+  if ($id('ov-ema20').classList.contains('active'))
+    datasets.push({ label:'EMA20', data:indicators.ema20, borderColor:'#ffb300', fill:false, tension:.3, pointRadius:0, borderWidth:1.5, borderDash:[5,4] });
+  if ($id('ov-ema50').classList.contains('active'))
+    datasets.push({ label:'EMA50', data:indicators.ema50, borderColor:'#0099ff', fill:false, tension:.3, pointRadius:0, borderWidth:1.5, borderDash:[5,4] });
+  if ($id('ov-bb').classList.contains('active')) {
+    datasets.push({ label:'BB Upper', data:indicators.bbUpper, borderColor:'rgba(255,107,53,0.5)', fill:false, tension:.3, pointRadius:0, borderWidth:1 });
+    datasets.push({ label:'BB Lower', data:indicators.bbLower, borderColor:'rgba(255,107,53,0.5)', fill:'-1', backgroundColor:'rgba(255,107,53,0.04)', tension:.3, pointRadius:0, borderWidth:1 });
+  }
+
+  stockChartInst = new Chart($id('stockChart'), {
+    type:'line', data:{labels:dates, datasets},
+    options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{ legend:{display:false} },
+      scales:{ x:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#8892aa',font:{size:9,family:'JetBrains Mono'},maxTicksLimit:10}},
+               y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#8892aa',font:{size:9,family:'JetBrains Mono'}}} } }
+  });
+
+  // RSI chart
+  if (rsiChartInst) rsiChartInst.destroy();
+  rsiChartInst = new Chart($id('rsiChart'), {
+    type:'line', data:{ labels:dates, datasets:[
+      { data:indicators.rsi, borderColor:'#0099ff', fill:false, tension:.4, pointRadius:0, borderWidth:2 },
+      { data:Array(dates.length).fill(70), borderColor:'rgba(255,68,85,0.35)', fill:false, pointRadius:0, borderDash:[5,4], borderWidth:1 },
+      { data:Array(dates.length).fill(30), borderColor:'rgba(46,213,115,0.35)', fill:false, pointRadius:0, borderDash:[5,4], borderWidth:1 },
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{display:false}, y:{min:0,max:100,grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#8892aa',font:{size:9}}} } }
+  });
+
+  // MACD chart
+  if (macdChartInst) macdChartInst.destroy();
+  macdChartInst = new Chart($id('macdChart'), {
+    type:'bar', data:{ labels:dates, datasets:[
+      { type:'line', data:indicators.macdLine, borderColor:'#00d4a3', fill:false, tension:.3, pointRadius:0, borderWidth:2 },
+      { type:'line', data:indicators.macdSignal, borderColor:'#ffb300', fill:false, tension:.3, pointRadius:0, borderWidth:1.5, borderDash:[4,4] },
+      { data:indicators.macdHist.map(v=>v>0?v:null), backgroundColor:'rgba(46,213,115,0.3)' },
+      { data:indicators.macdHist.map(v=>v<0?v:null), backgroundColor:'rgba(255,68,85,0.3)' },
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{display:false}, y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#8892aa',font:{size:9}}} } }
+  });
+
+  // Signal card
+  if (sig) {
+    $id('chart-signal-card').style.display = 'block';
+    const cls = sig.action==='BUY'?'s-buy':sig.action==='SELL'?'s-sell':'s-hold';
+    $id('chart-signal-body').innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span class="sbadge ${cls}" style="font-size:14px;padding:8px 20px">${sig.action}</span>
+        <div>
+          <div style="font-size:16px;font-weight:600">${chartSymbol} — Confidence ${sig.confidence}%</div>
+          <div style="font-size:12px;color:var(--text2)">Score: ${sig.score > 0 ? '+' : ''}${sig.score} · RSI: ${sig.rsi} · MACD: ${sig.macdValue}</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:16px">
+          <div><div style="font-size:10px;color:var(--text2);font-family:var(--mono)">TARGET</div><div class="up" style="font-size:16px;font-weight:600;font-family:var(--mono)">Rs ${fmt(sig.target)}</div></div>
+          <div><div style="font-size:10px;color:var(--text2);font-family:var(--mono)">STOP LOSS</div><div class="down" style="font-size:16px;font-weight:600;font-family:var(--mono)">Rs ${fmt(sig.stopLoss)}</div></div>
+        </div>
+      </div>
+      <div class="comp-grid" style="margin-top:14px">
+        ${sig.components ? Object.entries(sig.components).map(([k,v]) => `<div class="comp-item"><div class="comp-name">${k.toUpperCase()}</div><div class="comp-val ${v.score>0?'up':v.score<0?'down':''}">${v.score>0?'+':''}${v.score}</div></div>`).join('') : ''}
+      </div>`;
+  }
+}
+
+// ─── VOLUME ──────────────────────────────────────────────────────────────────
+async function loadVolume() {
+  const [volRes, adRes, blockRes] = await Promise.all([apiFetch('/volume'), apiFetch('/accumdist'), apiFetch('/blocktrades')]);
+  if (volRes.success) {
+    const d = volRes.data;
+    const totalBuy = d.reduce((a,b) => a + b.buyVolume, 0);
+    const totalSell = d.reduce((a,b) => a + b.sellVolume, 0);
+    const total = totalBuy + totalSell;
+    $id('vol-metrics').innerHTML = `
+      <div class="mc g"><div class="mc-label">Buy Volume</div><div class="mc-val up">${(totalBuy/1e6).toFixed(1)}M</div><div class="mc-chg up">${(totalBuy/total*100).toFixed(1)}% of total</div></div>
+      <div class="mc r"><div class="mc-label">Sell Volume</div><div class="mc-val down">${(totalSell/1e6).toFixed(1)}M</div><div class="mc-chg down">${(totalSell/total*100).toFixed(1)}% of total</div></div>
+      <div class="mc b"><div class="mc-label">Turnover Leader</div><div class="mc-val" style="color:var(--a2)">${d[0]?.symbol||'—'}</div><div class="mc-chg" style="color:var(--text2)">Highest volume</div></div>
+      <div class="mc a"><div class="mc-label">Buy/Sell Ratio</div><div class="mc-val up">${(totalBuy/totalSell).toFixed(2)}</div><div class="mc-chg ${totalBuy>totalSell?'up':'down'}">${totalBuy>totalSell?'Bullish':'Bearish'} pressure</div></div>`;
+
+    // Volume bar chart
+    const top15 = d.slice(0, 15);
+    if (volChartInst) volChartInst.destroy();
+    volChartInst = new Chart($id('volBarChart'), {
+      type:'bar', data:{
+        labels: top15.map(s=>s.symbol),
+        datasets:[
+          { label:'Buy', data:top15.map(s=>s.buyVolume), backgroundColor:'rgba(46,213,115,0.65)', borderRadius:3 },
+          { label:'Sell', data:top15.map(s=>s.sellVolume), backgroundColor:'rgba(255,68,85,0.65)', borderRadius:3 },
+        ]
+      },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+        scales:{ x:{grid:{display:false},ticks:{color:'#8892aa',font:{size:9,family:'JetBrains Mono'}}},
+                 y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#8892aa',font:{size:9}}} } }
+    });
+  }
+
+  if (adRes.success) {
+    const cont = $id('ad-list');
+    cont.innerHTML = adRes.data.slice(0,8).map(s => `
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+          <span style="font-family:var(--mono);font-weight:600">${s.symbol}</span>
+          <span class="${s.phase==='accumulation'?'up':'down'}" style="font-size:10px;font-family:var(--mono)">${s.phase.toUpperCase()}</span>
+        </div>
+        <div class="adg"><div class="adg-a" style="width:${s.accumPercent}%"></div><div class="adg-d" style="width:${100-s.accumPercent}%"></div></div>
+      </div>`).join('');
+  }
+
+  if (blockRes.success) {
+    $id('block-body').innerHTML = blockRes.data.map(t =>
+      `<tr><td style="color:var(--text2)">${t.time}</td><td style="font-weight:600;color:var(--accent)">${t.symbol}</td><td>${t.quantity.toLocaleString()}</td><td>Rs ${fmt(t.price)}</td><td class="up">Rs ${(t.amount/1e5).toFixed(1)}L</td><td><span style="font-size:10px;padding:2px 7px;border-radius:4px;background:${t.type==='Block'?'rgba(0,153,255,0.15)':'rgba(255,179,0,0.15)'};color:${t.type==='Block'?'var(--a2)':'var(--warn)'}">${t.type}</span></td><td style="color:var(--text2)">${t.buyer}</td><td style="color:var(--text2)">${t.seller}</td></tr>`
+    ).join('');
+  }
+}
+
+// ─── BROKER ───────────────────────────────────────────────────────────────────
+async function loadBrokerData() {
+  const sym = $id('broker-sym')?.value || 'NABIL';
+  const res = await apiFetch(`/brokers/${sym}`);
+  if (!res.success) return;
+  const data = res.data;
+  const total = data.reduce((a,b) => a + b.buy, 0);
+
+  const sorted = [...data].sort((a,b) => b.buy - a.buy).slice(0,5);
+  $id('buy-brokers').innerHTML = sorted.map(b => `<tr><td style="color:var(--a2)">${b.id}</td><td>${b.name}</td><td>${b.buy.toLocaleString()}</td><td class="up">${(b.buy/total*100).toFixed(1)}%</td></tr>`).join('');
+
+  const sortedS = [...data].sort((a,b) => b.sell - a.sell).slice(0,5);
+  const totalS = data.reduce((a,b) => a + b.sell, 0);
+  $id('sell-brokers').innerHTML = sortedS.map(b => `<tr><td style="color:var(--a2)">${b.id}</td><td>${b.name}</td><td>${b.sell.toLocaleString()}</td><td class="down">${(b.sell/totalS*100).toFixed(1)}%</td></tr>`).join('');
+
+  if (brokerChartInst) brokerChartInst.destroy();
+  const top6 = data.slice(0,6);
+  brokerChartInst = new Chart($id('brokerChart'), {
+    type:'bar', data:{
+      labels: top6.map(b=>b.id+' '+b.name.split(' ')[0]),
+      datasets:[
+        { label:'Buy', data:top6.map(b=>b.buy), backgroundColor:'rgba(46,213,115,0.65)', borderRadius:3 },
+        { label:'Sell', data:top6.map(b=>b.sell), backgroundColor:'rgba(255,68,85,0.65)', borderRadius:3 },
+      ]
+    },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{grid:{display:false},ticks:{color:'#8892aa',font:{size:9,family:'JetBrains Mono'}}},
+               y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#8892aa',font:{size:9}}} } }
+  });
+}
+
+// ─── SUPPORT & RESISTANCE ─────────────────────────────────────────────────────
+async function loadSRData() {
+  const sym = $id('sr-sym')?.value || 'NABIL';
+  const [srRes, chartRes] = await Promise.all([apiFetch(`/sr/${sym}`), apiFetch(`/indicators/${sym}?days=60`)]);
+  if (srRes.success) {
+    const { supports, resistances, ltp } = srRes.data;
+    const cont = $id('sr-levels');
+    cont.innerHTML = `
+      <div style="font-size:11px;color:var(--text2);font-family:var(--mono);margin-bottom:7px">RESISTANCE LEVELS</div>
+      ${resistances.slice(0,3).map(r=>`<div class="srz res"><div><div class="srz-price down">Rs ${fmt(r.price)}</div><div class="srz-str down">${r.strength >= 3 ? 'Strong' : 'Moderate'} — ${r.strength} tests</div></div></div>`).join('')}
+      <div style="font-size:11px;color:var(--text2);font-family:var(--mono);margin:12px 0 7px">SUPPORT LEVELS</div>
+      ${supports.slice(0,3).map(s=>`<div class="srz sup"><div><div class="srz-price up">Rs ${fmt(s.price)}</div><div class="srz-str up">${s.strength >= 3 ? 'Strong' : 'Moderate'} — ${s.strength} tests</div></div></div>`).join('')}
+      <div style="margin-top:14px;padding:10px;background:var(--card2);border-radius:8px">
+        <div style="font-size:10px;color:var(--text2);font-family:var(--mono)">LTP</div>
+        <div style="font-size:18px;font-weight:700;font-family:var(--mono)">Rs ${fmt(ltp)}</div>
+      </div>`;
+  }
+  if (chartRes.success) {
+    const { dates, ohlcv, indicators } = chartRes.data;
+    const srR = srRes.success ? srRes.data : {};
+    if (srChartInst) srChartInst.destroy();
+    const ds = [{ data:ohlcv.closes, borderColor:'#00d4a3', backgroundColor:'rgba(0,212,163,0.04)', fill:true, tension:.4, pointRadius:0, borderWidth:2 }];
+    if (srR.resistances) srR.resistances.slice(0,2).forEach(r => ds.push({ data:Array(dates.length).fill(r.price), borderColor:'rgba(255,68,85,0.6)', fill:false, pointRadius:0, borderDash:[6,4], borderWidth:1.5 }));
+    if (srR.supports) srR.supports.slice(0,2).forEach(s => ds.push({ data:Array(dates.length).fill(s.price), borderColor:'rgba(46,213,115,0.6)', fill:false, pointRadius:0, borderDash:[6,4], borderWidth:1.5 }));
+    srChartInst = new Chart($id('srChart'), {
+      type:'line', data:{labels:dates, datasets:ds},
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+        scales:{ x:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#8892aa',font:{size:9,family:'JetBrains Mono'},maxTicksLimit:10}},
+                 y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#8892aa',font:{size:9,family:'JetBrains Mono'}}} } }
+    });
+  }
+}
+
+// ─── FUNDAMENTAL ─────────────────────────────────────────────────────────────
+function loadFunda() {
+  const stocks = [
+    { sym:'NABIL', ltp:1182, eps:82.4, pe:14.3, pb:1.8, roe:12.8, div:3.2 },
+    { sym:'EBL',   ltp:1020, eps:74.1, pe:13.8, pb:1.6, roe:11.4, div:2.8 },
+    { sym:'NTC',   ltp:768,  eps:55.3, pe:13.9, pb:2.1, roe:15.1, div:4.5 },
+    { sym:'CHILIME',ltp:695, eps:42.1, pe:16.5, pb:3.2, roe:19.4, div:5.0 },
+    { sym:'GBIME', ltp:314,  eps:28.7, pe:10.9, pb:1.3, roe:9.2,  div:2.1 },
+    { sym:'NICA',  ltp:840,  eps:38.4, pe:21.9, pb:2.4, roe:8.7,  div:1.8 },
+    { sym:'PRVU',  ltp:428,  eps:34.2, pe:12.5, pb:1.4, roe:10.3, div:2.5 },
+    { sym:'SCB',   ltp:6800, eps:480,  pe:14.2, pb:2.8, roe:20.1, div:6.0 },
+  ];
+  const sigs = Object.fromEntries(allSignals.map(s=>[s.symbol,s]));
+  $id('funda-body').innerHTML = stocks.map(r => {
+    const sig = sigs[r.sym];
+    const cls = sig?.action==='BUY'?'s-buy':sig?.action==='SELL'?'s-sell':'s-hold';
+    return `<tr>
+      <td style="font-weight:600;color:var(--accent)">${r.sym}</td>
+      <td>Rs ${fmt(r.ltp)}</td><td>${r.eps}</td>
+      <td class="${r.pe<15?'up':r.pe>20?'down':''}">${r.pe}</td>
+      <td>${r.pb}</td>
+      <td class="${r.roe>12?'up':''}">${r.roe}%</td>
+      <td class="up">${r.div}%</td>
+      <td class="${sig?.rsi<35?'up':sig?.rsi>70?'down':''}">${sig?.rsi||'—'}</td>
+      <td>${sig?`<span class="sbadge ${cls}" style="font-size:10px;padding:2px 7px">${sig.action}</span>`:'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── BACKTEST ─────────────────────────────────────────────────────────────────
+async function runBacktest() {
+  const btn = $id('bt-btn');
+  btn.disabled=true; btn.textContent='⟳ Running...';
+  const res = await apiFetch('/backtest', { method:'POST', body: JSON.stringify({
+    symbol: $id('bt-sym').value,
+    strategy: $id('bt-strat').value,
+    capital: parseInt($id('bt-cap').value),
+  })});
+  btn.disabled=false; btn.textContent='▶ Run Backtest';
+  if (!res.success) return;
+  const d = res.data;
+  $id('bt-results').style.display = 'block';
+  $id('bt-metrics').innerHTML = `
+    <div class="btm"><div class="btm-v ${d.totalReturn>=0?'up':'down'}">${d.totalReturn>=0?'+':''}${d.totalReturn}%</div><div class="btm-l">Total Return</div></div>
+    <div class="btm"><div class="btm-v" style="color:var(--a2)">${d.sharpeRatio}</div><div class="btm-l">Sharpe Ratio</div></div>
+    <div class="btm"><div class="btm-v down">-${d.maxDrawdown}%</div><div class="btm-l">Max Drawdown</div></div>
+    <div class="btm"><div class="btm-v up">${d.winRate}%</div><div class="btm-l">Win Rate (${d.totalTrades} trades)</div></div>`;
+  if (btChartInst) btChartInst.destroy();
+  btChartInst = new Chart($id('btChart'), {
+    type:'line', data:{ labels:d.equityCurve.map(e=>e.date), datasets:[
+      { data:d.equityCurve.map(e=>e.value), borderColor:'#00d4a3', backgroundColor:'rgba(0,212,163,0.07)', fill:true, tension:.3, pointRadius:0, borderWidth:2 },
+      { data:Array(d.equityCurve.length).fill(d.capital), borderColor:'rgba(255,255,255,0.15)', fill:false, pointRadius:0, borderDash:[4,4], borderWidth:1 },
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{display:false}, y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#8892aa',font:{size:9},callback:v=>'Rs '+(v/1000|0)+'K'}} } }
+  });
+}
+
+// ─── IPO ─────────────────────────────────────────────────────────────────────
+async function loadIPO() {
+  const res = await apiFetch('/ipo');
+  if (!res.success) return;
+  const statusColor = { open:'var(--success)', upcoming:'var(--warn)', closed:'var(--text3)', rights:'var(--a2)' };
+  $id('ipo-grid').innerHTML = res.data.map(ipo => `
+    <div class="ipoc">
+      <div class="ipoc-status" style="color:${statusColor[ipo.status]||'var(--text2)'}">● ${ipo.status.toUpperCase()}</div>
+      <div class="ipoc-name">${ipo.name}</div>
+      <div class="ipoc-sect">${ipo.sector}</div>
+      <div class="ipoc-row">
+        <div><div class="ipoc-plabel">Issue Price</div><div class="ipoc-pval">Rs ${ipo.issuePrice}</div></div>
+        <div style="text-align:right"><div class="ipoc-plabel">Close Date</div><div style="font-family:var(--mono);font-size:12px">${ipo.closeDate}</div></div>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:10px;color:var(--text2);font-family:var(--mono)">Issuer: ${ipo.issuer}</div>
+    </div>`).join('');
+}
+
+// ─── PORTFOLIO ────────────────────────────────────────────────────────────────
+async function loadPortfolio() {
+  const sigs = Object.fromEntries(allSignals.map(s=>[s.symbol,s]));
+  let totalVal = 0, totalInv = 350000;
+  const rows = portfolio.map(h => {
+    const sig = sigs[h.sym];
+    const ltp = sig?.ltp || (h.avg * (1 + (Math.random()-0.45)*0.15));
+    const val = h.qty * ltp;
+    const pl = (ltp - h.avg) * h.qty;
+    const plPct = ((ltp-h.avg)/h.avg*100);
+    totalVal += val;
+    const cls = sig?.action==='BUY'?'s-buy':sig?.action==='SELL'?'s-sell':'s-hold';
+    return `<tr>
+      <td style="font-weight:600;color:var(--accent)">${h.sym}</td>
+      <td>${h.qty}</td>
+      <td>Rs ${fmt(h.avg,0)}</td>
+      <td>Rs ${fmt(ltp,0)}</td>
+      <td>Rs ${fmt(val,0)}</td>
+      <td class="${pl>=0?'up':'down'}">Rs ${fmt(Math.abs(pl),0)}</td>
+      <td class="${plPct>=0?'up':'down'}">${plPct>=0?'+':''}${plPct.toFixed(1)}%</td>
+      <td>${sig?`<span class="sbadge ${cls}" style="font-size:10px;padding:2px 7px">${sig.action}</span>`:'—'}</td>
+    </tr>`;
+  });
+  $id('pf-body').innerHTML = rows.join('');
+  const pl = totalVal - totalInv;
+  $id('pf-val').textContent = `Rs ${fmt(totalVal,0)}`;
+  $id('pf-chg').textContent = `${pl>=0?'+':''}Rs ${fmt(Math.abs(pl),0)} today`;
+  $id('pf-pl').textContent = `Overall P&L: ${pl>=0?'+':''}${((pl/totalInv)*100).toFixed(1)}%`;
+
+  if (allocChartInst) return;
+  allocChartInst = new Chart($id('allocChart'), {
+    type:'doughnut',
+    data:{ labels:portfolio.map(h=>h.sym), datasets:[{ data:portfolio.map(h=>h.qty*h.avg), backgroundColor:['#00d4a3','#0099ff','#ffb300','#2ed573','#ff6b35'], borderWidth:0 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:true, position:'right', labels:{color:'#8892aa',font:{size:10,family:'JetBrains Mono'},padding:10} } } }
+  });
+}
+
+function addHolding() {
+  const sym = prompt('Stock Symbol (e.g. NABIL):');
+  if (!sym) return;
+  const qty = parseInt(prompt('Quantity:') || '0');
+  const avg = parseFloat(prompt('Average Price (Rs):') || '0');
+  if (sym && qty && avg) { portfolio.push({ sym: sym.toUpperCase(), qty, avg }); loadPortfolio(); }
+}
+
+// ─── ALERTS ───────────────────────────────────────────────────────────────────
+function addAlert() {
+  const sym = prompt('Symbol:');
+  const price = prompt('Price Level (Rs):');
+  const dir = prompt('Direction (above/below):');
+  if (sym && price && dir) {
+    const cont = $id('alerts-list');
+    const isUp = dir.toLowerCase().includes('above');
+    cont.insertAdjacentHTML('afterbegin', `<div class="arow"><div class="aicon ${isUp?'ai-g':'ai-r'}">${isUp?'↑':'↓'}</div><div class="atext"><div class="atitle">${sym.toUpperCase()} — Break ${dir} Rs ${price}</div><div class="asub">Push + SMS + Email</div></div><div class="atime">Active</div></div>`);
+  }
+}
+
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+function toggleNotif() { $id('np').classList.toggle('open'); }
+function closeNP() { $id('np').classList.remove('open'); }
+function toggleSW(row) { row.querySelector('.sw').classList.toggle('on'); }
+function setTab(el) { el.parentNode.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); }
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+initDashboard();
+loadSignals();
+connectWS();
+
+// Polling fallback (in case WS not available)
+setInterval(async () => {
+  if (wsConnected) return;
+  const r = await apiFetch('/index');
+  if (r.success) updateIndex(r.data);
+}, 15000);
+
+setInterval(() => {
+  $id('lu').textContent = new Date().toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}, 1000);
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.np') && !e.target.closest('.tbtn')) $id('np').classList.remove('open');
+});
+</script>
+</body>
+</html>
