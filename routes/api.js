@@ -1,308 +1,311 @@
+'use strict';
 const express = require('express');
-const router = express.Router();
+const router  = express.Router();
+const data    = require('../services/nepseData');
 const { generateSignal, getIndicatorSeries } = require('../services/signalEngine');
-const {
-  NEPSE_STOCKS, generatePriceHistory,
-  fetchLiveQuotes, fetchNEPSEIndex, fetchSectorData,
-  fetchBrokerData, fetchFloorsheet, fetchIPOData, isMarketOpen
-} = require('../services/nepseData');
 
-// ─── MARKET INDEX ────────────────────────────────────────────────────────────
-router.get('/index', async (req, res) => {
-  try {
-    const data = await fetchNEPSEIndex();
-    res.json({ success: true, data });
-  } catch (e) {
-    res.status(500).json({ success: false, error: e.message });
-  }
+// ─── HEALTH / STATUS ─────────────────────────────────────────────────────────
+router.get('/status', async (req, res) => {
+  res.json({ ok: true, marketOpen: data.isMarketOpen(), ts: new Date().toISOString(), cache: data.getCacheStats() });
 });
 
-// ─── SECTOR DATA ─────────────────────────────────────────────────────────────
-router.get('/sectors', async (req, res) => {
+// ─── NEPSE INDEX ─────────────────────────────────────────────────────────────
+router.get('/index', async (req, res) => {
   try {
-    const data = await fetchSectorData();
-    res.json({ success: true, data });
+    const result = await data.getNEPSEIndex();
+    res.json(result);
   } catch (e) {
-    res.status(500).json({ success: false, error: e.message });
+    res.status(502).json({ success: false, error: e.message });
   }
 });
 
 // ─── LIVE QUOTES ─────────────────────────────────────────────────────────────
 router.get('/quotes', async (req, res) => {
   try {
-    const quotes = await fetchLiveQuotes();
-    res.json({ success: true, data: quotes, marketOpen: isMarketOpen() });
+    const result = await data.getLiveQuotes();
+    res.json(result);
   } catch (e) {
-    res.status(500).json({ success: false, error: e.message });
+    res.status(502).json({ success: false, error: e.message });
   }
 });
 
-// ─── STOCK UNIVERSE ───────────────────────────────────────────────────────────
-router.get('/stocks', (req, res) => {
-  res.json({ success: true, data: NEPSE_STOCKS });
+// ─── SECTORS ─────────────────────────────────────────────────────────────────
+router.get('/sectors', async (req, res) => {
+  try {
+    const result = await data.getSectorPerformance();
+    res.json(result);
+  } catch (e) {
+    res.status(502).json({ success: false, error: e.message });
+  }
 });
 
-// ─── PRICE HISTORY ───────────────────────────────────────────────────────────
-router.get('/history/:symbol', (req, res) => {
-  const { symbol } = req.params;
-  const days = parseInt(req.query.days) || 120;
-  const upper = symbol.toUpperCase();
-  const stock = NEPSE_STOCKS.find(s => s.symbol === upper);
-  if (!stock) return res.status(404).json({ success: false, error: 'Symbol not found' });
-  const data = generatePriceHistory(upper, days);
-  res.json({ success: true, data });
+// ─── STOCK PRICE HISTORY ──────────────────────────────────────────────────────
+router.get('/history/:symbol', async (req, res) => {
+  const symbol = req.params.symbol.toUpperCase();
+  const days   = Math.min(365, Math.max(20, parseInt(req.query.days) || 120));
+  try {
+    const result = await data.getStockHistory(symbol, days);
+    res.json(result);
+  } catch (e) {
+    res.status(502).json({ success: false, error: e.message, symbol });
+  }
 });
 
-// ─── INDICATORS ───────────────────────────────────────────────────────────────
-router.get('/indicators/:symbol', (req, res) => {
-  const upper = req.params.symbol.toUpperCase();
-  const days = parseInt(req.query.days) || 120;
-  const priceData = generatePriceHistory(upper, days);
-  const indicators = getIndicatorSeries(priceData);
-  res.json({
-    success: true,
-    data: {
-      dates: priceData.dates,
-      ohlcv: {
-        opens: priceData.opens, highs: priceData.highs,
-        lows: priceData.lows, closes: priceData.closes, volumes: priceData.volumes
-      },
-      indicators
-    }
-  });
+// ─── TECHNICAL INDICATORS ─────────────────────────────────────────────────────
+router.get('/indicators/:symbol', async (req, res) => {
+  const symbol = req.params.symbol.toUpperCase();
+  const days   = Math.min(365, Math.max(60, parseInt(req.query.days) || 120));
+  try {
+    const hist = await data.getStockHistory(symbol, days);
+    if (!hist.success) return res.status(502).json(hist);
+
+    const indicators = getIndicatorSeries({
+      closes:  hist.closes,
+      highs:   hist.highs,
+      lows:    hist.lows,
+      volumes: hist.volumes,
+    });
+    res.json({
+      success: true,
+      symbol,
+      dates:   hist.dates,
+      ohlcv:   { opens: hist.opens, highs: hist.highs, lows: hist.lows, closes: hist.closes, volumes: hist.volumes },
+      indicators,
+      source:  hist.source,
+    });
+  } catch (e) {
+    res.status(502).json({ success: false, error: e.message, symbol });
+  }
 });
 
 // ─── SINGLE SIGNAL ────────────────────────────────────────────────────────────
-router.get('/signal/:symbol', (req, res) => {
-  const upper = req.params.symbol.toUpperCase();
-  const stock = NEPSE_STOCKS.find(s => s.symbol === upper);
-  if (!stock) return res.status(404).json({ success: false, error: 'Symbol not found' });
-  const priceData = generatePriceHistory(upper, 120);
-  const signal = generateSignal(priceData);
-  res.json({ success: true, data: { ...signal, name: stock.name, sector: stock.sector } });
+router.get('/signal/:symbol', async (req, res) => {
+  const symbol = req.params.symbol.toUpperCase();
+  try {
+    const hist = await data.getStockHistory(symbol, 160);
+    if (!hist.success) return res.status(502).json({ success: false, error: hist.error, symbol });
+
+    // Also try to get the current LTP
+    const quotesRes = await data.getLiveQuotes();
+    const liveQuote = quotesRes.success ? quotesRes.data.find(q => q.symbol === symbol) : null;
+
+    const sig = generateSignal({ symbol, ...hist });
+    if (!sig) return res.status(422).json({ success: false, error: 'Insufficient data for signal', symbol });
+
+    // Override LTP with live price if available
+    if (liveQuote) {
+      sig.ltp       = liveQuote.ltp;
+      sig.change    = liveQuote.change;
+      sig.changePct = liveQuote.changePct;
+    }
+
+    res.json({ success: true, data: sig, source: hist.source });
+  } catch (e) {
+    res.status(502).json({ success: false, error: e.message, symbol });
+  }
 });
 
-// ─── ALL SIGNALS (Batch) ──────────────────────────────────────────────────────
-router.get('/signals', (req, res) => {
-  const signals = NEPSE_STOCKS.map(stock => {
-    const priceData = generatePriceHistory(stock.symbol, 120);
-    const signal = generateSignal(priceData);
-    if (!signal) return null;
-    return {
-      ...signal,
-      name: stock.name,
-      sector: stock.sector,
-    };
-  }).filter(Boolean);
+// ─── ALL SIGNALS (batch, runs in parallel with concurrency limit) ─────────────
+router.get('/signals', async (req, res) => {
+  try {
+    const quotesRes = await data.getLiveQuotes();
+    if (!quotesRes.success) return res.status(502).json(quotesRes);
 
-  const sorted = signals.sort((a, b) => {
-    const order = { BUY: 0, HOLD: 1, SELL: 2 };
-    if (order[a.action] !== order[b.action]) return order[a.action] - order[b.action];
-    return b.confidence - a.confidence;
-  });
+    const symbols = quotesRes.data.map(q => q.symbol).slice(0, 40); // top 40 by volume
+    const liveMap = Object.fromEntries(quotesRes.data.map(q => [q.symbol, q]));
 
-  res.json({ success: true, data: sorted, count: sorted.length });
+    // Fetch history in parallel with concurrency limit of 5
+    const CONCURRENCY = 5;
+    const results = [];
+    for (let i = 0; i < symbols.length; i += CONCURRENCY) {
+      const batch = symbols.slice(i, i + CONCURRENCY);
+      const batchResults = await Promise.allSettled(
+        batch.map(async sym => {
+          const hist = await data.getStockHistory(sym, 160);
+          if (!hist.success || hist.closes.length < 30) return null;
+          const sig = generateSignal({ symbol: sym, ...hist });
+          if (!sig) return null;
+          const lq = liveMap[sym];
+          if (lq) { sig.ltp = lq.ltp; sig.change = lq.change; sig.changePct = lq.changePct; }
+          return sig;
+        })
+      );
+      results.push(...batchResults.map(r => r.status === 'fulfilled' ? r.value : null).filter(Boolean));
+    }
+
+    const sorted = results.sort((a,b) => {
+      const order = { BUY:0, HOLD:1, SELL:2 };
+      return (order[a.action] - order[b.action]) || (b.confidence - a.confidence);
+    });
+
+    res.json({ success: true, data: sorted, count: sorted.length, source: quotesRes.source });
+  } catch (e) {
+    res.status(502).json({ success: false, error: e.message });
+  }
 });
 
 // ─── SCANNER ─────────────────────────────────────────────────────────────────
-router.post('/scan', (req, res) => {
-  const filters = req.body || {};
-  let results = NEPSE_STOCKS.map(stock => {
-    const priceData = generatePriceHistory(stock.symbol, 120);
-    const signal = generateSignal(priceData);
-    if (!signal) return null;
-    const last = priceData.closes[priceData.closes.length - 1];
-    const vol20avg = priceData.volumes.slice(-20).reduce((a,b)=>a+b,0)/20;
-    const lastVol = priceData.volumes[priceData.volumes.length - 1];
-    return {
-      ...signal,
-      name: stock.name,
-      sector: stock.sector,
-      volumeRatio: parseFloat((lastVol / vol20avg).toFixed(2)),
-    };
-  }).filter(Boolean);
+router.post('/scan', async (req, res) => {
+  const f = req.body || {};
+  try {
+    const quotesRes = await data.getLiveQuotes();
+    if (!quotesRes.success) return res.status(502).json(quotesRes);
 
-  // Apply filters
-  if (filters.action && filters.action !== 'all') results = results.filter(r => r.action === filters.action.toUpperCase());
-  if (filters.sector && filters.sector !== 'all') results = results.filter(r => r.sector === filters.sector);
-  if (filters.minConfidence) results = results.filter(r => r.confidence >= parseInt(filters.minConfidence));
-  if (filters.minRSI) results = results.filter(r => r.rsi && r.rsi >= parseFloat(filters.minRSI));
-  if (filters.maxRSI) results = results.filter(r => r.rsi && r.rsi <= parseFloat(filters.maxRSI));
-  if (filters.macdBullish) results = results.filter(r => r.macdValue && r.macdValue > 0);
-  if (filters.volumeSpike) results = results.filter(r => r.volumeRatio >= 1.5);
-  if (filters.breakout) results = results.filter(r => r.score >= 30);
-  if (filters.oversold) results = results.filter(r => r.rsi && r.rsi < 35);
+    const symbols  = quotesRes.data.map(q => q.symbol).slice(0, 40);
+    const liveMap  = Object.fromEntries(quotesRes.data.map(q => [q.symbol, q]));
+    const CONC     = 5;
+    let   results  = [];
 
-  results.sort((a, b) => b.confidence - a.confidence);
-  res.json({ success: true, data: results, count: results.length });
-});
+    for (let i = 0; i < symbols.length; i += CONC) {
+      const batch = symbols.slice(i, i + CONC);
+      const batchR = await Promise.allSettled(batch.map(async sym => {
+        const hist = await data.getStockHistory(sym, 160);
+        if (!hist.success || hist.closes.length < 30) return null;
+        const sig = generateSignal({ symbol: sym, ...hist });
+        if (!sig) return null;
+        const lq  = liveMap[sym];
+        if (lq) { sig.ltp = lq.ltp; sig.volume = lq.volume; sig.changePct = lq.changePct; }
+        return sig;
+      }));
+      results.push(...batchR.map(r => r.status==='fulfilled'?r.value:null).filter(Boolean));
+    }
 
-// ─── BROKER ANALYTICS ─────────────────────────────────────────────────────────
-router.get('/brokers/:symbol', async (req, res) => {
-  const upper = req.params.symbol.toUpperCase();
-  const data = await fetchBrokerData(upper);
-  res.json({ success: true, data });
-});
+    // Apply filters
+    if (f.action && f.action !== 'all') results = results.filter(r => r.action === f.action.toUpperCase());
+    if (f.minConfidence) results = results.filter(r => r.confidence >= +f.minConfidence);
+    if (f.maxRSI)        results = results.filter(r => r.rsi && r.rsi <= +f.maxRSI);
+    if (f.minRSI)        results = results.filter(r => r.rsi && r.rsi >= +f.minRSI);
+    if (f.minScore)      results = results.filter(r => r.score >= +f.minScore);
+    if (f.oversold)      results = results.filter(r => r.rsi && r.rsi < 35);
+    if (f.macdBullish)   results = results.filter(r => r.macdValue && r.macdValue > 0);
+    if (f.buyOnly)       results = results.filter(r => r.action === 'BUY');
 
-// ─── FLOORSHEET ───────────────────────────────────────────────────────────────
-router.get('/floorsheet/:symbol', async (req, res) => {
-  const upper = req.params.symbol.toUpperCase();
-  const page = parseInt(req.query.page) || 0;
-  const data = await fetchFloorsheet(upper, page);
-  res.json({ success: true, data });
+    results.sort((a,b) => b.confidence - a.confidence);
+    res.json({ success: true, data: results, count: results.length, source: quotesRes.source });
+  } catch(e) {
+    res.status(502).json({ success: false, error: e.message });
+  }
 });
 
 // ─── VOLUME ANALYTICS ─────────────────────────────────────────────────────────
 router.get('/volume', async (req, res) => {
-  const quotes = await fetchLiveQuotes();
-  const volumeData = quotes.map(q => {
-    const buyRatio = 0.4 + Math.random() * 0.4;
-    return {
-      symbol: q.symbol,
-      totalVolume: q.volume,
-      buyVolume: Math.round(q.volume * buyRatio),
-      sellVolume: Math.round(q.volume * (1 - buyRatio)),
-      buyPercent: parseFloat((buyRatio * 100).toFixed(1)),
-      sellPercent: parseFloat(((1 - buyRatio) * 100).toFixed(1)),
-      turnover: q.turnover,
-    };
-  }).sort((a, b) => b.totalVolume - a.totalVolume);
-  res.json({ success: true, data: volumeData });
-});
-
-// ─── BLOCK TRADES ─────────────────────────────────────────────────────────────
-router.get('/blocktrades', (req, res) => {
-  const trades = NEPSE_STOCKS.slice(0, 8).map((stock, i) => {
-    const price = BASE_PRICES[stock.symbol] || 500;
-    const qty = (Math.round(1000 + Math.random() * 9000) / 10 | 0) * 10;
-    const mins = i * 18 + Math.round(Math.random() * 15);
-    const time = new Date(Date.now() - mins * 60000);
-    return {
-      symbol: stock.symbol,
-      name: stock.name,
-      quantity: qty,
-      price: parseFloat((price * (1 + (Math.random()-0.5)*0.01)).toFixed(2)),
-      amount: Math.round(qty * price),
-      type: Math.random() > 0.5 ? 'Block' : 'Bulk',
-      time: time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      buyer: `B${Math.round(10 + Math.random()*40)}`,
-      seller: `B${Math.round(10 + Math.random()*40)}`,
-    };
-  }).sort((a, b) => b.amount - a.amount);
-  res.json({ success: true, data: trades });
-});
-
-// ─── SUPPORT & RESISTANCE ─────────────────────────────────────────────────────
-router.get('/sr/:symbol', (req, res) => {
-  const upper = req.params.symbol.toUpperCase();
-  const priceData = generatePriceHistory(upper, 120);
-  const signal = generateSignal(priceData);
-  res.json({ success: true, data: { symbol: upper, supports: signal?.supports || [], resistances: signal?.resistances || [], ltp: signal?.ltp } });
-});
-
-// ─── IPO / RIGHTS / MF ────────────────────────────────────────────────────────
-router.get('/ipo', async (req, res) => {
-  const data = await fetchIPOData();
-  res.json({ success: true, data });
-});
-
-// ─── BACKTEST ─────────────────────────────────────────────────────────────────
-router.post('/backtest', (req, res) => {
-  const { symbol = 'NABIL', strategy = 'rsi', startDate, endDate, capital = 100000 } = req.body;
-  const priceData = generatePriceHistory(symbol.toUpperCase(), 365);
-  const { closes, dates } = priceData;
-  const { rsi: rsiValues } = getIndicatorSeries(priceData);
-
-  let cash = capital, shares = 0;
-  const equity = [];
-  let trades = 0, wins = 0, peak = capital, maxDD = 0;
-
-  for (let i = 20; i < closes.length; i++) {
-    const rsiVal = rsiValues[i];
-    const price = closes[i];
-    let action = 'hold';
-
-    if (strategy === 'rsi') {
-      if (rsiVal < 35 && shares === 0) action = 'buy';
-      else if (rsiVal > 65 && shares > 0) action = 'sell';
-    } else if (strategy === 'ema') {
-      // EMA cross
-      const ema20v = priceData.closes.slice(Math.max(0,i-20),i).reduce((a,b)=>a+b,0)/Math.min(20,i);
-      const ema50v = priceData.closes.slice(Math.max(0,i-50),i).reduce((a,b)=>a+b,0)/Math.min(50,i);
-      if (ema20v > ema50v && shares === 0) action = 'buy';
-      else if (ema20v < ema50v && shares > 0) action = 'sell';
-    }
-
-    if (action === 'buy' && cash > price) {
-      shares = Math.floor(cash / price / 10) * 10;
-      cash -= shares * price;
-      trades++;
-    } else if (action === 'sell' && shares > 0) {
-      const proceeds = shares * price;
-      if (proceeds > shares * closes[i-10]) wins++;
-      cash += proceeds;
-      shares = 0;
-    }
-
-    const eqVal = cash + shares * price;
-    equity.push({ date: dates[i], value: Math.round(eqVal) });
-    if (eqVal > peak) peak = eqVal;
-    const dd = (peak - eqVal) / peak * 100;
-    if (dd > maxDD) maxDD = dd;
+  try {
+    const result = await data.getVolumeAnalytics();
+    res.json(result);
+  } catch(e) {
+    res.status(502).json({ success: false, error: e.message });
   }
+});
 
-  // Force close
-  if (shares > 0) { cash += shares * closes[closes.length - 1]; shares = 0; }
-  const finalEquity = cash;
-  const totalReturn = ((finalEquity - capital) / capital * 100);
-  const winRate = trades > 0 ? ((wins / trades) * 100) : 0;
+// ─── BROKER ANALYTICS ─────────────────────────────────────────────────────────
+router.get('/brokers/:symbol', async (req, res) => {
+  const symbol = req.params.symbol.toUpperCase();
+  try {
+    const result = await data.getBrokerAnalysis(symbol);
+    res.json(result);
+  } catch(e) {
+    res.status(502).json({ success: false, error: e.message, symbol });
+  }
+});
 
-  res.json({
-    success: true,
-    data: {
-      symbol: symbol.toUpperCase(),
-      strategy,
-      capital,
-      finalValue: Math.round(finalEquity),
-      totalReturn: parseFloat(totalReturn.toFixed(2)),
-      maxDrawdown: parseFloat(maxDD.toFixed(2)),
-      totalTrades: trades,
-      winRate: parseFloat(winRate.toFixed(1)),
-      sharpeRatio: parseFloat((totalReturn / (maxDD + 1) * 0.12).toFixed(2)),
-      equityCurve: equity,
+// ─── S/R LEVELS ───────────────────────────────────────────────────────────────
+router.get('/sr/:symbol', async (req, res) => {
+  const symbol = req.params.symbol.toUpperCase();
+  try {
+    const hist = await data.getStockHistory(symbol, 160);
+    if (!hist.success) return res.status(502).json(hist);
+    const sig  = generateSignal({ symbol, ...hist });
+    if (!sig)  return res.status(422).json({ success: false, error: 'Insufficient data' });
+    res.json({ success: true, data: { symbol, ltp: sig.ltp, supports: sig.supports, resistances: sig.resistances }, source: hist.source });
+  } catch(e) {
+    res.status(502).json({ success: false, error: e.message, symbol });
+  }
+});
+
+// ─── IPO ─────────────────────────────────────────────────────────────────────
+router.get('/ipo', async (req, res) => {
+  try {
+    const result = await data.getIPOData();
+    res.json(result);
+  } catch(e) {
+    res.status(502).json({ success: false, error: e.message });
+  }
+});
+
+// ─── BACKTEST (uses real historical data) ─────────────────────────────────────
+router.post('/backtest', async (req, res) => {
+  const { symbol = 'NABIL', strategy = 'rsi', capital = 100000 } = req.body;
+  try {
+    const hist = await data.getStockHistory(symbol.toUpperCase(), 365);
+    if (!hist.success) return res.status(502).json(hist);
+    if (hist.closes.length < 60) return res.status(422).json({ success: false, error: `Insufficient history: only ${hist.closes.length} trading days available for ${symbol}` });
+
+    const ind   = getIndicatorSeries({ closes: hist.closes, highs: hist.highs, lows: hist.lows, volumes: hist.volumes });
+    const { closes, dates } = hist;
+    let   cash = capital, shares = 0, trades = 0, wins = 0, peak = capital, maxDD = 0;
+    const equity = [];
+
+    for (let i = 30; i < closes.length; i++) {
+      const p = closes[i];
+      let action = 'hold';
+      if (strategy === 'rsi' && ind.rsi[i]) {
+        if (ind.rsi[i] < 35 && shares === 0) action = 'buy';
+        else if (ind.rsi[i] > 65 && shares > 0) action = 'sell';
+      } else if (strategy === 'ema') {
+        const [e20, e50, pe20, pe50] = [ind.ema20[i], ind.ema50[i], ind.ema20[i-1], ind.ema50[i-1]];
+        if (e20 && e50 && pe20 && pe50) {
+          if (e20 > e50 && pe20 <= pe50 && shares === 0) action = 'buy';
+          else if (e20 < e50 && pe20 >= pe50 && shares > 0) action = 'sell';
+        }
+      } else if (strategy === 'macd') {
+        const [lm, ls, pm, ps] = [ind.macdLine[i], ind.macdSignal[i], ind.macdLine[i-1], ind.macdSignal[i-1]];
+        if (lm && ls && pm && ps) {
+          if (lm > ls && pm <= ps && shares === 0) action = 'buy';
+          else if (lm < ls && pm >= ps && shares > 0) action = 'sell';
+        }
+      }
+
+      if (action === 'buy' && cash >= p * 10) {
+        shares = Math.floor(cash / p / 10) * 10;
+        cash  -= shares * p;
+        trades++;
+      } else if (action === 'sell' && shares > 0) {
+        if (p > closes[Math.max(0, i - 20)]) wins++;
+        cash  += shares * p;
+        shares = 0;
+      }
+
+      const ev = cash + shares * p;
+      equity.push({ date: dates[i], value: Math.round(ev) });
+      if (ev > peak) peak = ev;
+      const dd = (peak - ev) / peak * 100;
+      if (dd > maxDD) maxDD = dd;
     }
-  });
+
+    if (shares > 0) { cash += shares * closes[closes.length-1]; shares = 0; }
+    const totalRet = ((cash - capital) / capital * 100);
+    const winRate  = trades > 0 ? (wins / trades * 100) : 0;
+
+    res.json({ success: true, data: {
+      symbol: symbol.toUpperCase(), strategy, capital,
+      finalValue:  Math.round(cash),
+      totalReturn: +totalRet.toFixed(2),
+      maxDrawdown: +maxDD.toFixed(2),
+      totalTrades: trades,
+      winRate:     +winRate.toFixed(1),
+      sharpeRatio: +(totalRet / (maxDD + 1) * 0.12).toFixed(2),
+      equityCurve: equity,
+      dataPoints:  closes.length,
+    }, source: hist.source });
+  } catch(e) {
+    res.status(502).json({ success: false, error: e.message });
+  }
 });
 
-// ─── MARKET STATUS ────────────────────────────────────────────────────────────
-router.get('/status', (req, res) => {
-  res.json({ success: true, data: { marketOpen: isMarketOpen(), time: new Date().toISOString() } });
-});
-
-// ─── ACCUMULATION/DISTRIBUTION ───────────────────────────────────────────────
-router.get('/accumdist', (req, res) => {
-  const data = NEPSE_STOCKS.map(stock => {
-    const priceData = generatePriceHistory(stock.symbol, 40);
-    const { closes, volumes } = priceData;
-    const recentClose = closes.slice(-5);
-    const avgClose5 = recentClose.reduce((a,b)=>a+b,0)/5;
-    const older = closes.slice(-20,-5);
-    const avgClose20 = older.reduce((a,b)=>a+b,0)/older.length;
-    const pctChg = ((avgClose5 - avgClose20) / avgClose20 * 100);
-    const avgVol = volumes.slice(-5).reduce((a,b)=>a+b,0)/5;
-    const baseVol = volumes.slice(-20,-5).reduce((a,b)=>a+b,0)/15;
-    const volRatio = avgVol / baseVol;
-    const phase = pctChg > 0 && volRatio > 1 ? 'accumulation' :
-                  pctChg < 0 && volRatio > 1 ? 'distribution' : 'neutral';
-    return {
-      symbol: stock.symbol, name: stock.name, sector: stock.sector,
-      phase, pctChange: parseFloat(pctChg.toFixed(2)),
-      volumeRatio: parseFloat(volRatio.toFixed(2)),
-      accumPercent: phase === 'accumulation' ? Math.round(50 + volRatio * 20) :
-                    phase === 'distribution' ? Math.round(50 - volRatio * 20) : 50,
-    };
-  });
-  res.json({ success: true, data });
+// ─── CACHE CONTROL ────────────────────────────────────────────────────────────
+router.post('/cache/clear', (req, res) => {
+  data.clearCache();
+  res.json({ success: true, message: 'Cache cleared' });
 });
 
 module.exports = router;
